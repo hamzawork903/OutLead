@@ -1,0 +1,5 @@
+# One niche per line. Lines starting with # are ignored.
+# Edit this list, then: python batch.py --niches-file niches.txt --cities-file cities.txt
+dentists
+plumbers
+roofers

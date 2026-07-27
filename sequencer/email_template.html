@@ -1,0 +1,56 @@
+<!-- Minimal email wrapper (accent #ff3131 — change to your brand colour;
+     --color-brand-orange; body stays white for inbox deliverability — dark
+     backgrounds render badly in many mail clients). Deliberately plain: cold
+     email that LOOKS designed gets filed under Promotions. Placeholders:
+     {greeting} {paragraphs} {button_url} {from_name} {title} {business_name}
+     {website} {reply_note} -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body style="margin:0;padding:0;background:#ffffff;">
+  <div style="max-width:560px;margin:0 auto;padding:0 20px 28px 20px;
+              font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,
+              Helvetica,Arial,sans-serif;font-size:15px;color:#111111;">
+
+    <div style="height:3px;background:#ff3131;border-radius:0 0 3px 3px;
+                margin:0 -20px 26px -20px;"></div>
+
+    <p style="margin:0 0 16px 0;line-height:1.6;">{greeting}</p>
+
+    {paragraphs}
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+           style="margin:4px 0 24px 0;">
+      <tr>
+        <td style="border-radius:8px;background:#ff3131;">
+          <a href="{button_url}"
+             style="display:inline-block;padding:10px 22px;font-size:14px;
+                    font-weight:600;color:#ffffff;text-decoration:none;
+                    border-radius:8px;">
+            Book a quick call
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0;line-height:1.6;">
+      <span style="font-weight:600;">{from_name}</span><br/>
+      <span style="color:#666666;font-size:13px;">{title}</span><br/>
+      <!-- your company, linked to your site (set both in .env) -->
+      <a href="https://{website}" style="text-decoration:none;">
+        <span style="font-family:Arial,Helvetica,sans-serif;font-weight:800;
+                     font-style:italic;font-size:15px;color:#ff3131;
+                     letter-spacing:-0.2px;">{business_name}</span>
+      </a>
+    </p>
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0 12px 0;"/>
+    <p style="margin:0;font-size:12px;line-height:1.5;color:#9ca3af;">
+      {reply_note}
+    </p>
+  </div>
+</body>
+</html>

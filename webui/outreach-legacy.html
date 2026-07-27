@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Outreach — Lead Scanner</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@450;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      ink: "#e9edf3", muted: "#9aa6b8", line: "rgba(255,255,255,.10)",
+      accent: "#3b82f6", good: "#34d399", warn: "#f4b740", bad: "#f26d6d",
+      panel: "rgba(17,21,28,.82)",
+    },
+    fontFamily: { sans: ["Inter","system-ui","sans-serif"], mono: ["JetBrains Mono","monospace"] },
+  } } };
+</script>
+<style>
+  html,body { height:100%; margin:0; background:#0b0e13; color:#e9edf3; font-family:Inter,system-ui,sans-serif; overflow:hidden; }
+  #bg { position:fixed; inset:0; z-index:0; overflow:hidden;
+    background: radial-gradient(120% 90% at 15% 0%, #14213a 0%, #0b0e13 55%), #0b0e13; }
+  .orb { position:absolute; border-radius:50%; filter:blur(70px); opacity:.30; animation: drift 24s ease-in-out infinite; }
+  .orb.a { width:440px; height:440px; background:#3b82f6; top:-100px; left:-100px; }
+  .orb.b { width:380px; height:380px; background:#34d399; bottom:-120px; right:4%; animation-delay:-10s; animation-duration:28s; }
+  @keyframes drift { 0%,100%{ transform:translate(0,0); } 50%{ transform:translate(50px,35px); } }
+  .panel { background:rgba(17,21,28,.82); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.10); }
+  ::-webkit-scrollbar{ width:6px; height:6px; } ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.16); border-radius:8px; }
+  .navtab { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600; transition:all .15s; cursor:pointer; border:none; background:transparent; }
+  .navtab.active { background:#3b82f6; color:white; }
+  .navtab:not(.active) { color:#9aa6b8; }
+  .navtab:not(.active):hover { color:#e9edf3; }
+  .stattile { background:rgba(17,21,28,.82); border:1px solid rgba(255,255,255,.10); border-radius:14px; padding:14px 16px; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+  .pill.active { background:rgba(59,130,246,.15); color:#7cb0ff; }
+  .pill.replied { background:rgba(52,211,153,.15); color:#34d399; }
+  .pill.stopped { background:rgba(242,109,109,.15); color:#f26d6d; }
+  .pill.completed { background:rgba(154,166,184,.15); color:#9aa6b8; }
+  .fitpill { padding:2px 8px; border-radius:6px; font-size:10.5px; font-weight:600; background:rgba(255,255,255,.06); color:#cdd6e4; white-space:nowrap; }
+  .jumppill { padding:4px 10px; border-radius:8px; font-size:11px; font-weight:600; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.10); color:#cdd6e4; white-space:nowrap; cursor:pointer; transition:border-color .15s, background .15s; }
+  .jumppill:hover { border-color:rgba(59,130,246,.5); color:#e9edf3; }
+  .jumppill .n { color:#7cb0ff; font-weight:700; margin-left:3px; }
+  @keyframes colflash { 0%,100%{ border-color:rgba(255,255,255,.10); } 40%{ border-color:#3b82f6; } }
+  .col-flash { animation: colflash 1s ease; }
+  select option{ background:#151a22; }
+  .btn-disabled { opacity:.55; cursor:not-allowed; }
+  #board-scroll { cursor:grab; scrollbar-width:thin; }
+  #board-scroll.dragging { cursor:grabbing; scroll-behavior:auto; user-select:none; }
+  .board-nav { position:absolute; top:50%; translate:0 -50%; z-index:10; width:32px; height:32px;
+    border-radius:999px; background:rgba(17,21,28,.92); border:1px solid rgba(255,255,255,.14);
+    color:#cdd6e4; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,.4); transition:opacity .15s, background .15s; }
+  .board-nav:hover { background:rgba(59,130,246,.25); color:#e9edf3; }
+  .board-nav.left { left:-4px; } .board-nav.right { right:-4px; }
+  .board-nav.hidden { display:none; }
+  /* Below the desktop breakpoint the sidebar+campaign grid stacks into one
+     column. The base layout is a fixed-height "app" (h-screen, overflow
+     hidden) with no page scroll — on a narrow window that leaves whatever's
+     below the sidebar completely unreachable. This makes the whole page
+     scroll instead, and gives each internal list a viewport-relative cap
+     (vh units don't need a sized ancestor, so they can't collapse to 0
+     the way percentage heights can once the fixed-height chain is removed). */
+  @media (max-width: 1023.98px) {
+    html, body { height: auto; overflow: auto; }
+    #app-root { height: auto; overflow: visible; }
+    #left-panel { max-height: 70vh; }
+    #board-scroll, .niche-col-inner { max-height: 50vh; }
+    #console { max-height: 30vh; }
+  }
+</style>
+</head>
+<body>
+<div id="bg"><div class="orb a"></div><div class="orb b"></div></div>
+
+<div id="app-root" class="relative z-10 h-screen p-4 flex flex-col gap-4 max-w-[1400px] mx-auto overflow-hidden">
+
+  <!-- HEADER -->
+  <header class="panel rounded-2xl px-5 py-3 flex items-center justify-between flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-accent text-[22px]">forward_to_inbox</span>
+      <span class="text-[15px] font-bold">Lead Scanner</span>
+      <div class="flex gap-1 p-1 rounded-xl bg-black/25 border border-line ml-2">
+        <a href="/" class="navtab">Scrape</a>
+        <a href="/outreach" class="navtab active">Outreach</a>
+        <a href="/terminal" class="navtab">Terminal</a>
+      </div>
+    </div>
+    <span id="mode-badge" class="pill completed">— mode —</span>
+  </header>
+
+  <!-- STAT TILES -->
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div class="stattile"><div class="text-[10.5px] text-muted uppercase font-semibold">Qualified</div><div id="stat-qualified" class="text-[22px] font-extrabold mt-1">—</div></div>
+    <div class="stattile"><div class="text-[10.5px] text-muted uppercase font-semibold">Active sequences</div><div id="stat-active" class="text-[22px] font-extrabold mt-1 text-accent">—</div></div>
+    <div class="stattile"><div class="text-[10.5px] text-muted uppercase font-semibold">Sent today / cap</div><div id="stat-sent" class="text-[22px] font-extrabold mt-1">—</div></div>
+    <div class="stattile"><div class="text-[10.5px] text-muted uppercase font-semibold">Replies</div><div id="stat-replied" class="text-[22px] font-extrabold mt-1 text-good">—</div></div>
+    <div class="stattile"><div class="text-[10.5px] text-muted uppercase font-semibold">Completed</div><div id="stat-completed" class="text-[22px] font-extrabold mt-1">—</div></div>
+    <div class="stattile"><div class="text-[10.5px] text-muted uppercase font-semibold">Suppressed</div><div id="stat-suppressed" class="text-[22px] font-extrabold mt-1 text-bad">—</div></div>
+  </div>
+
+  <!-- minmax(0,1fr) + min-w-0 below: without them the grid column's default
+       min-width:auto lets the campaign board GROW to fit all its columns
+       (3200px+) instead of clipping — so overflow-x never activates and the
+       board can't scroll at all. -->
+  <div class="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4 flex-1 min-h-0">
+
+    <!-- LEFT: actions -->
+    <section id="left-panel" class="panel rounded-2xl p-5 flex flex-col gap-4 overflow-y-auto">
+      <div>
+        <h2 class="text-[12px] font-bold uppercase tracking-wide text-muted mb-2">Pipeline</h2>
+        <p class="text-[12.5px] text-muted leading-relaxed">Score your scraped leads, then run the outreach engine. Both buttons here are always safe — nothing real ever sends from this dashboard.</p>
+      </div>
+      <button id="btn-qualify" class="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-line font-semibold text-[13px] flex items-center justify-center gap-2 transition">
+        <span class="material-symbols-outlined text-[18px]">rule</span> <span class="label">Run qualifier</span>
+      </button>
+      <button id="btn-outreach" class="w-full py-3 rounded-xl bg-accent hover:brightness-110 text-white font-semibold text-[13px] flex items-center justify-center gap-2 transition">
+        <span class="material-symbols-outlined text-[18px]">send</span> <span class="label">Run outreach pass</span>
+      </button>
+      <p class="text-[11px] text-muted -mt-2">Dry run only — enqueues new leads, checks for replies, previews sends. Never sends for real.</p>
+
+      <div class="border-t border-line pt-4">
+        <h2 class="text-[12px] font-bold uppercase tracking-wide text-muted mb-2">Verify real sending</h2>
+        <button id="btn-test-send" class="w-full py-2.5 rounded-xl border border-good/40 text-good hover:bg-good/10 font-semibold text-[12.5px] flex items-center justify-center gap-2 transition">
+          <span class="material-symbols-outlined text-[16px]">mail</span> <span class="label">Send test email</span>
+        </button>
+        <p id="test-send-note" class="text-[11px] text-muted mt-1.5">Loading target address…</p>
+      </div>
+
+      <div class="border-t border-line pt-4">
+        <h2 class="text-[12px] font-bold uppercase tracking-wide text-muted mb-2">Send by business type</h2>
+        <p class="text-[11px] text-muted mb-2">This sends REAL emails to exactly the type and count you pick below.</p>
+        <select id="sv-vertical" class="w-full bg-black/25 border border-line rounded-xl py-2 px-3 text-[12.5px] mb-2 focus:outline-none focus:border-accent">
+          <option value="">Loading business types…</option>
+        </select>
+        <div class="flex items-center gap-2 mb-1.5">
+          <input id="sv-count" type="number" min="1" placeholder="how many" class="flex-1 bg-black/25 border border-line rounded-xl py-2 px-3 text-[12.5px] focus:outline-none focus:border-accent"/>
+          <label class="flex items-center gap-1.5 text-[11.5px] text-muted cursor-pointer whitespace-nowrap">
+            <input id="sv-latest" type="checkbox" class="rounded"/> Latest
+          </label>
+        </div>
+        <p id="sv-avail" class="text-[11px] text-muted mb-2">—</p>
+        <button id="sv-proceed" disabled class="btn-disabled w-full py-2.5 rounded-xl bg-bad/15 border border-bad/40 text-bad font-semibold text-[12.5px] flex items-center justify-center gap-2 transition">
+          <span class="material-symbols-outlined text-[16px]">send</span> <span class="label">Send real emails</span>
+        </button>
+      </div>
+
+      <div class="border-t border-line pt-4 mt-auto">
+        <h2 class="text-[12px] font-bold uppercase tracking-wide text-muted mb-2">By service fit</h2>
+        <div class="space-y-1.5 text-[12.5px]">
+          <div class="flex justify-between"><span class="text-muted">Web development</span><span id="fit-web_development" class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span class="text-muted">Automation</span><span id="fit-automation" class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span class="text-muted">AI agent</span><span id="fit-ai" class="font-semibold">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: log + table -->
+    <div class="flex flex-col gap-4 min-h-0 min-w-0">
+      <section class="panel rounded-2xl p-4 h-36 flex flex-col gap-2 shrink-0">
+        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-accent text-[16px]">terminal</span><span class="text-[11px] font-semibold uppercase tracking-wide text-muted">Activity log</span></div>
+        <div id="console" class="flex-1 overflow-y-auto font-mono text-[12px] leading-relaxed text-ink/80"><span class="text-muted">Idle — run the qualifier or an outreach pass to see live progress.</span></div>
+      </section>
+
+      <section class="panel rounded-2xl p-4 flex-1 flex flex-col gap-3 min-h-0">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-3">
+            <h2 class="text-[12px] font-bold uppercase tracking-wide text-muted">Campaign</h2>
+            <span class="text-[11px] text-muted"><span id="seq-count">0</span> sequences</span>
+          </div>
+          <div class="flex gap-1 p-1 rounded-xl bg-black/25 border border-line" id="filter-pills">
+            <button class="navtab active" data-filter="">All</button>
+            <button class="navtab" data-filter="active">Active</button>
+            <button class="navtab" data-filter="replied">Replied</button>
+            <button class="navtab" data-filter="completed">Completed</button>
+            <button class="navtab" data-filter="stopped">Stopped</button>
+          </div>
+        </div>
+        <!-- Every business type on the board, with counts — click to jump straight to it -->
+        <div id="niche-jump" class="flex gap-1.5 overflow-x-auto pb-1 shrink-0"></div>
+        <div class="relative flex-1 min-h-0">
+          <button id="board-left" class="board-nav left hidden"><span class="material-symbols-outlined">chevron_left</span></button>
+          <div id="board-scroll" class="h-full overflow-x-auto overflow-y-hidden scroll-smooth">
+            <div id="niche-board" class="h-full flex gap-3"></div>
+          </div>
+          <button id="board-right" class="board-nav right hidden"><span class="material-symbols-outlined">chevron_right</span></button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Send-by-business-type confirmation -->
+<div id="sv-modal" class="hidden fixed inset-0 z-[999] items-center justify-center bg-black/60">
+  <div class="panel rounded-2xl p-6 w-[380px]">
+    <h3 class="text-[15px] font-bold mb-2 text-bad">Send real emails?</h3>
+    <p id="sv-modal-text" class="text-[13px] text-muted mb-5 leading-relaxed"></p>
+    <div class="flex gap-2">
+      <button id="sv-no" class="flex-1 py-2.5 rounded-xl border border-line text-[13px] font-semibold hover:bg-white/5 transition">No</button>
+      <button id="sv-yes" class="flex-1 py-2.5 rounded-xl bg-bad hover:brightness-110 text-white text-[13px] font-semibold transition">Yes, send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  let currentFilter = "";
+  let allSeqs = [];
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function fitLabel(f){ return {web_development:"Web dev", automation:"Automation", ai:"AI agent"}[f] || f || "—"; }
+  const VERTICAL_LABELS = {
+    insurance: "Insurance brokers", staffing: "Staffing agencies",
+    commercial_contractor: "Commercial contractors", msp: "Managed IT (MSPs)",
+    commercial_cleaning: "Commercial cleaning", marketing_agency: "Marketing agencies",
+    dental: "Dental practices", medspa: "Med spas", real_estate: "Real estate agencies",
+    law_pi: "Personal injury law", web_development: "Web development",
+    automation: "Automation", ai: "AI agent",
+  };
+  function verticalLabel(v){
+    return VERTICAL_LABELS[v] || String(v).replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+  }
+  function nicheName(q){
+    if(!q) return "Unsorted";
+    const base = q.split(/\s+in\s+/i)[0].trim() || q.trim();
+    return base.charAt(0).toUpperCase() + base.slice(1);
+  }
+  function scoreClass(score){ return score==null?"text-muted":score>=70?"text-good":score>=40?"text-warn":"text-bad"; }
+
+  async function loadStats() {
+    const r = await fetch("/api/outreach/stats");
+    const s = await r.json();
+    $("stat-qualified").textContent = s.qualified;
+    $("stat-active").textContent = s.active_sequences;
+    $("stat-sent").textContent = s.sent_today + " / " + s.daily_cap;
+    $("stat-replied").textContent = s.replied;
+    $("stat-completed").textContent = s.completed;
+    $("stat-suppressed").textContent = s.suppressed;
+    $("fit-web_development").textContent = s.service_fit.web_development;
+    $("fit-automation").textContent = s.service_fit.automation;
+    $("fit-ai").textContent = s.service_fit.ai;
+
+    const badge = $("mode-badge");
+    if (s.dry_run) { badge.textContent = "Dry run mode"; badge.className = "pill completed"; }
+    else { badge.textContent = "Live mode armed"; badge.className = "pill stopped"; }
+
+    $("test-send-note").textContent = "Sends one real email to " + s.test_send_address + " only — never a real lead.";
+  }
+
+  function cardHtml(s) {
+    const note = s.status === "active" ? esc((s.next_send_at || "").replace("T", " ").slice(0, 16))
+      : (s.status === "stopped" || s.status === "replied") ? esc(s.stop_reason || "")
+      : "";
+    return `<div class="rounded-lg bg-black/25 border border-line px-2.5 py-2">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[12.5px] font-medium truncate">${esc(s.name)}</span>
+        <span class="text-[12px] font-bold shrink-0 ${scoreClass(s.quality_score)}">${s.quality_score ?? "—"}</span>
+      </div>
+      <div class="text-[11px] text-muted truncate mt-0.5">${esc(s.email)}</div>
+      <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+        <span class="fitpill">${fitLabel(s.service_fit)}</span>
+        <span class="pill ${esc(s.status)}">${esc(s.status)}</span>
+        <span class="text-[10px] text-muted">step ${s.current_step + 1}/3</span>
+      </div>
+      ${note ? `<div class="text-[10.5px] text-muted mt-1 truncate">${note}</div>` : ""}
+    </div>`;
+  }
+
+  function renderBoard() {
+    const rows = currentFilter ? allSeqs.filter(s => s.status === currentFilter) : allSeqs;
+    $("seq-count").textContent = allSeqs.length;
+
+    const groups = new Map();
+    for (const s of rows) {
+      const key = nicheName(s.query);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(s);
+    }
+    for (const items of groups.values()) items.sort((a, b) => (b.quality_score ?? -1) - (a.quality_score ?? -1));
+    const ordered = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+    $("niche-board").innerHTML = ordered.map(([niche, items]) => `
+      <div id="col-${esc(slugify(niche))}" class="shrink-0 w-[280px] h-full flex flex-col gap-2 bg-black/15 border border-line rounded-xl p-3 min-h-0">
+        <div class="flex items-center justify-between shrink-0">
+          <h3 class="text-[12px] font-bold truncate">${esc(niche)}</h3>
+          <span class="text-[11px] text-muted">${items.length}</span>
+        </div>
+        <div class="niche-col-inner flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
+          ${items.map(cardHtml).join("")}
+        </div>
+      </div>`).join("")
+      || `<div class="w-full flex items-center justify-center text-muted text-[13px]">No sequences yet — run the qualifier, then an outreach pass.</div>`;
+
+    $("niche-jump").innerHTML = ordered.map(([niche, items]) =>
+      `<button class="jumppill" data-target="col-${esc(slugify(niche))}">${esc(niche)}<span class="n">${items.length}</span></button>`
+    ).join("");
+    document.querySelectorAll("#niche-jump .jumppill").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const col = document.getElementById(btn.dataset.target);
+        if (!col) return;
+        // Scroll ONLY the horizontal board. (scrollIntoView is banned here:
+        // it also scrolls every ANCESTOR scroller — including the fixed-height
+        // page root, which has overflow:hidden and therefore no scrollbar to
+        // recover with — vertically shearing the whole layout apart.)
+        const left = boardScroll.scrollLeft
+          + col.getBoundingClientRect().left
+          - boardScroll.getBoundingClientRect().left - 8;
+        boardScroll.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+        col.classList.remove("col-flash"); void col.offsetWidth; col.classList.add("col-flash");
+      });
+    });
+  }
+
+  function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+
+  async function loadSequences() {
+    const r = await fetch("/api/outreach/sequences");
+    allSeqs = await r.json();
+    renderBoard();
+    updateBoardNav();
+  }
+
+  /* ---- horizontal scroll UX: wheel, drag-to-scroll, nav arrows ---- */
+  const boardScroll = $("board-scroll");
+  function updateBoardNav() {
+    const max = boardScroll.scrollWidth - boardScroll.clientWidth;
+    $("board-left").classList.toggle("hidden", boardScroll.scrollLeft <= 4);
+    $("board-right").classList.toggle("hidden", max <= 4 || boardScroll.scrollLeft >= max - 4);
+  }
+  boardScroll.addEventListener("scroll", updateBoardNav);
+  window.addEventListener("resize", updateBoardNav);
+  boardScroll.addEventListener("wheel", e => {
+    // If the pointer is over a column's own card list AND that column still
+    // has room to scroll vertically in this direction, let it scroll normally
+    // — only hijack the wheel for horizontal board-sliding once that column
+    // is scrolled to its top/bottom (or has nothing to scroll at all).
+    const col = e.target.closest(".niche-col-inner");
+    if (col && col.scrollHeight > col.clientHeight) {
+      const atTop = col.scrollTop <= 0;
+      const atBottom = col.scrollTop + col.clientHeight >= col.scrollHeight - 1;
+      const scrollingDown = e.deltaY > 0;
+      if (!((scrollingDown && atBottom) || (!scrollingDown && atTop))) return;
+    }
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); boardScroll.scrollLeft += e.deltaY; }
+  }, { passive: false });
+  $("board-left").addEventListener("click", () => boardScroll.scrollBy({ left: -300, behavior: "smooth" }));
+  $("board-right").addEventListener("click", () => boardScroll.scrollBy({ left: 300, behavior: "smooth" }));
+
+  let dragging = false, dragStartX = 0, dragStartScroll = 0;
+  boardScroll.addEventListener("mousedown", e => {
+    dragging = true; dragStartX = e.pageX; dragStartScroll = boardScroll.scrollLeft;
+    boardScroll.classList.add("dragging");
+  });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    boardScroll.scrollLeft = dragStartScroll - (e.pageX - dragStartX);
+  });
+  window.addEventListener("mouseup", () => { dragging = false; boardScroll.classList.remove("dragging"); });
+
+  document.querySelectorAll("#filter-pills .navtab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#filter-pills .navtab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentFilter = btn.dataset.filter;
+      renderBoard();
+      updateBoardNav();
+    });
+  });
+
+  /* ---- live log (same SSE pattern as the scrape page) ---- */
+  let es = null, firstLog = true;
+  function logLine(t) {
+    if (firstLog) { $("console").innerHTML = ""; firstLog = false; }
+    const el = document.createElement("div");
+    const l = (t || "").toLowerCase();
+    el.className = /error/.test(l) ? "text-bad"
+      : /\[warn\]|skip/.test(l) ? "text-warn"
+      : /reply|qualified|sent|enqueued|deliverable/.test(l) ? "text-good"
+      : "text-ink/80";
+    el.textContent = t || " ";
+    $("console").appendChild(el);
+    $("console").scrollTop = $("console").scrollHeight;
+  }
+
+  function runStream(onDone) {
+    if (es) es.close();
+    es = new EventSource("/stream");
+    es.addEventListener("log", e => logLine(e.data));
+    es.addEventListener("done", () => { es.close(); if (onDone) onDone(); });
+    es.onerror = () => { if (es) es.close(); };
+  }
+
+  // Reconnect to a qualify/outreach pass still running (navigated away + back).
+  function reconnectRun(btn, busyText) {
+    const label = btn.querySelector(".label");
+    const original = label.textContent;
+    btn.disabled = true; btn.classList.add("btn-disabled"); label.textContent = busyText;
+    firstLog = true; $("console").innerHTML = "";
+    logLine("↻ Reconnected to a run already in progress…");
+    runStream(async () => {
+      btn.disabled = false; btn.classList.remove("btn-disabled"); label.textContent = original;
+      await loadStats(); await loadSequences();
+    });
+  }
+
+  async function runTool(url, btn, busyText) {
+    const label = btn.querySelector(".label");
+    const original = label.textContent;
+    btn.disabled = true; btn.classList.add("btn-disabled"); label.textContent = busyText;
+    firstLog = true; $("console").innerHTML = "";
+    try {
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const data = await res.json();
+      if (!res.ok) {
+        logLine("Error: " + (data.error || "could not start"));
+        btn.disabled = false; btn.classList.remove("btn-disabled"); label.textContent = original;
+        return;
+      }
+      logLine("$ " + data.command);
+      runStream(async () => {
+        btn.disabled = false; btn.classList.remove("btn-disabled"); label.textContent = original;
+        await loadStats(); await loadSequences();
+      });
+    } catch (e) {
+      logLine("Server not reachable.");
+      btn.disabled = false; btn.classList.remove("btn-disabled"); label.textContent = original;
+    }
+  }
+
+  $("btn-qualify").addEventListener("click", () => runTool("/api/qualify/start", $("btn-qualify"), "Scoring…"));
+  $("btn-outreach").addEventListener("click", () => runTool("/api/outreach/start", $("btn-outreach"), "Running…"));
+
+  $("btn-test-send").addEventListener("click", async () => {
+    const btn = $("btn-test-send"), label = btn.querySelector(".label");
+    const original = label.textContent;
+    btn.disabled = true; btn.classList.add("btn-disabled"); label.textContent = "Sending…";
+    try {
+      const res = await fetch("/api/outreach/test-send", { method: "POST" });
+      const data = await res.json();
+      $("test-send-note").textContent = res.ok ? ("✓ " + data.message) : ("✗ " + (data.error || "failed"));
+    } catch (e) {
+      $("test-send-note").textContent = "✗ Server not reachable.";
+    }
+    btn.disabled = false; btn.classList.remove("btn-disabled"); label.textContent = original;
+  });
+
+  /* ---- send by business type: dropdown + count + latest + confirm ---- */
+  let svCounts = [];
+
+  async function loadVerticalCounts() {
+    try {
+      const r = await fetch("/api/outreach/vertical-counts");
+      svCounts = await r.json();
+      const sel = $("sv-vertical");
+      sel.innerHTML = svCounts.length
+        ? svCounts.map(v => `<option value="${esc(v.vertical)}">${esc(verticalLabel(v.vertical))} (${v.due_now} available)</option>`).join("")
+        : `<option value="">No active leads yet</option>`;
+    } catch (e) {
+      $("sv-vertical").innerHTML = `<option value="">Server not reachable</option>`;
+    }
+    updateSvAvail();
+  }
+  function currentSvAvailable() {
+    const row = svCounts.find(r => r.vertical === $("sv-vertical").value);
+    return row ? row.due_now : 0;
+  }
+  function validateSvCount() {
+    const avail = currentSvAvailable();
+    const n = parseInt($("sv-count").value, 10);
+    const typed = $("sv-count").value !== "";
+    const bad = !$("sv-vertical").value || !typed || !n || n < 1 || n > avail;
+    $("sv-count").classList.toggle("border-bad", typed && (!n || n < 1 || n > avail));
+    $("sv-count").classList.toggle("text-bad", typed && (!n || n < 1 || n > avail));
+    $("sv-proceed").disabled = bad;
+    $("sv-proceed").classList.toggle("btn-disabled", bad);
+    return !bad;
+  }
+  function updateSvAvail() {
+    const avail = currentSvAvailable();
+    $("sv-avail").textContent = $("sv-vertical").value
+      ? (avail ? `${avail} lead(s) available for this type right now.` : "No leads available for this type right now.")
+      : "Pick a business type above.";
+    validateSvCount();
+  }
+  $("sv-vertical").addEventListener("change", updateSvAvail);
+  $("sv-count").addEventListener("input", validateSvCount);
+
+  $("sv-proceed").addEventListener("click", () => {
+    if (!validateSvCount()) return;
+    const v = $("sv-vertical").value, n = parseInt($("sv-count").value, 10), latest = $("sv-latest").checked;
+    $("sv-modal-text").textContent = `You're about to send ${n} REAL email${n === 1 ? "" : "s"} to `
+      + `${latest ? "the latest " : ""}${n} "${verticalLabel(v)}" lead${n === 1 ? "" : "s"}. This cannot be undone. Continue?`;
+    $("sv-modal").classList.remove("hidden"); $("sv-modal").style.display = "flex";
+  });
+  $("sv-no").addEventListener("click", () => {
+    $("sv-modal").style.display = "none"; $("sv-modal").classList.add("hidden");
+  });
+  $("sv-yes").addEventListener("click", async () => {
+    $("sv-modal").style.display = "none"; $("sv-modal").classList.add("hidden");
+    const v = $("sv-vertical").value, n = parseInt($("sv-count").value, 10), latest = $("sv-latest").checked;
+    const btn = $("sv-proceed"), label = btn.querySelector(".label");
+    const original = label.textContent;
+    btn.disabled = true; btn.classList.add("btn-disabled"); label.textContent = "Sending…";
+    firstLog = true; $("console").innerHTML = "";
+    try {
+      const res = await fetch("/api/outreach/send-vertical", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vertical: v, count: n, latest }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        logLine("Error: " + (data.error || "could not start"));
+        btn.disabled = false; btn.classList.remove("btn-disabled"); label.textContent = original;
+        return;
+      }
+      logLine("$ " + data.command);
+      runStream(async () => {
+        btn.disabled = false; btn.classList.remove("btn-disabled"); label.textContent = original;
+        await loadStats(); await loadSequences(); await loadVerticalCounts();
+      });
+    } catch (e) {
+      logLine("Server not reachable.");
+      btn.disabled = false; btn.classList.remove("btn-disabled"); label.textContent = original;
+    }
+  });
+
+  // Reconnect the send-by-type button specifically (distinct kind from the
+  // plain "Run outreach pass", so a page reload restores the right button).
+  function reconnectSendVertical() {
+    const btn = $("sv-proceed"), label = btn.querySelector(".label");
+    const original = label.textContent;
+    btn.disabled = true; btn.classList.add("btn-disabled"); label.textContent = "Sending…";
+    firstLog = true; $("console").innerHTML = "";
+    logLine("↻ Reconnected to a send already in progress…");
+    runStream(async () => {
+      btn.disabled = false; label.textContent = original;
+      await loadStats(); await loadSequences(); await loadVerticalCounts();
+      validateSvCount();
+    });
+  }
+
+  loadStats();
+  loadSequences();
+  loadVerticalCounts();
+
+  (async function reconnectIfRunning(){
+    try {
+      const r = await fetch("/api/status"); const s = await r.json();
+      if (s.running && s.kind === "qualify") reconnectRun($("btn-qualify"), "Scoring…");
+      else if (s.running && s.kind === "outreach") reconnectRun($("btn-outreach"), "Running…");
+      else if (s.running && s.kind === "outreach_vertical") reconnectSendVertical();
+    } catch (e) { /* server not reachable — stay idle */ }
+  })();
+})();
+</script>
+</body>
+</html>

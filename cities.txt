@@ -1,0 +1,4 @@
+# One city per line (include the state for accuracy). Lines starting with # are ignored.
+Austin TX
+Dallas TX
+Houston TX

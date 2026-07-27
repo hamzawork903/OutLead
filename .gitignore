@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Scraper output & runtime data (never commit leads)
+logs/
+*.db
+*.sqlite3
+*.csv
+*.xlsx
+exports/
+
+# Secrets
+.env
+
+# Chrome profile — holds live Google session cookies, never commit
+profile/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# React frontend
+frontend/node_modules/
+webui/dist/

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Terminal — Lead Scanner</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      ink: "#e9edf3", muted: "#9aa6b8", line: "rgba(255,255,255,.10)",
+      accent: "#3b82f6", good: "#34d399", warn: "#f4b740", bad: "#f26d6d",
+      panel: "rgba(17,21,28,.82)",
+    },
+    fontFamily: { sans: ["Inter","system-ui","sans-serif"], mono: ["JetBrains Mono","monospace"] },
+  } } };
+</script>
+<style>
+  html,body { height:100%; margin:0; background:#0b0e13; color:#e9edf3; font-family:Inter,system-ui,sans-serif; overflow:hidden; }
+  #bg { position:fixed; inset:0; z-index:0;
+    background: radial-gradient(120% 90% at 50% 0%, #131b2c 0%, #0b0e13 55%), #0b0e13; }
+  .scanlines { position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.035;
+    background: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px); }
+  .panel { background:rgba(17,21,28,.82); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.10); }
+  ::-webkit-scrollbar{ width:7px; height:7px; } ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.16); border-radius:8px; }
+  .navtab { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600; transition:all .15s; cursor:pointer; border:none; background:transparent; text-decoration:none; }
+  .navtab.active { background:#3b82f6; color:white; }
+  .navtab:not(.active) { color:#9aa6b8; }
+  .navtab:not(.active):hover { color:#e9edf3; }
+  #screen { font-family:"JetBrains Mono",monospace; font-size:13px; line-height:1.75; }
+  #screen .prompt-echo { color:#7cb0ff; }
+  #screen .sys { color:#7d8aa0; }
+  #screen .ask { color:#e9edf3; font-weight:600; }
+  #screen .ok { color:#34d399; }
+  #screen .warn { color:#f4b740; }
+  #screen .err { color:#f26d6d; }
+  #screen .dim { color:#5c6a80; }
+  #screen .stage-found { color:#7cb0ff; }
+  #screen .stage-enriched { color:#34d399; }
+  #screen .stage-qualified { color:#c99bf0; }
+  #screen .stage-sent { color:#f4b740; }
+  .cursor { display:inline-block; width:8px; height:16px; background:#3b82f6; animation:blink 1s steps(1) infinite; vertical-align:middle; }
+  @keyframes blink { 50% { opacity:0; } }
+  #cmdline:focus { outline:none; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:5px; font-size:10.5px; font-weight:700; background:rgba(59,130,246,.15); color:#7cb0ff; margin-right:5px; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div class="scanlines"></div>
+
+<div class="relative z-10 h-screen p-4 flex flex-col gap-4 max-w-[1100px] mx-auto overflow-hidden">
+
+  <header class="panel rounded-2xl px-5 py-3 flex items-center justify-between flex-wrap gap-3 shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-accent text-[22px]">terminal</span>
+      <span class="text-[15px] font-bold">Lead Scanner</span>
+      <div class="flex gap-1 p-1 rounded-xl bg-black/25 border border-line ml-2">
+        <a href="/" class="navtab">Scrape</a>
+        <a href="/outreach" class="navtab">Outreach</a>
+        <a href="/terminal" class="navtab active">Terminal</a>
+      </div>
+    </div>
+    <span id="mode-badge" class="chip">idle</span>
+  </header>
+
+  <section class="panel rounded-2xl p-5 flex-1 flex flex-col min-h-0">
+    <div id="screen" class="flex-1 overflow-y-auto pr-1"></div>
+    <div class="flex items-center gap-2 mt-3 pt-3 border-t border-line font-mono text-[13px]">
+      <span class="text-accent">$</span>
+      <input id="cmdline" type="text" autocomplete="off" spellcheck="false"
+        class="flex-1 bg-transparent border-none text-ink placeholder:text-muted/50"
+        placeholder="type a command… (try: help)"/>
+      <span class="cursor"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const screen = $("screen"), cmdline = $("cmdline"), badge = $("mode-badge");
+
+  /* ---------------------------------------------------------------------
+     Terminal output helpers
+  --------------------------------------------------------------------- */
+  function println(text, cls) {
+    const line = document.createElement("div");
+    if (cls) line.className = cls;
+    line.textContent = text;
+    screen.appendChild(line);
+    screen.scrollTop = screen.scrollHeight;
+  }
+  function blank() { println(""); }
+  function echo(cmd) { println("$ " + cmd, "prompt-echo"); }
+
+  function banner() {
+    println("Lead Scanner — Terminal", "ask");
+    println("Type 'help' to see what you can do.", "sys");
+    blank();
+  }
+
+  const HELP = [
+    ["help", "show this list"],
+    ["start scrape", "wizard: configure and run a scrape"],
+    ["set sequence", "wizard: define what happens to leads live (during 'start scrape')"],
+    ["status", "show what's running right now"],
+    ["clear", "clear the screen"],
+  ];
+  function printHelp() {
+    println("Commands:", "ask");
+    HELP.forEach(([c, d]) => println("  " + c.padEnd(16) + d, "sys"));
+    blank();
+  }
+
+  /* ---------------------------------------------------------------------
+     Wizard state machine
+  --------------------------------------------------------------------- */
+  const YN = s => /^y(es)?$/i.test(s.trim());
+  const cfg = {
+    niche: "", city: "", ratings: false, hours_price: false, emails: false,
+    socials: false, website_phones: false, minRating: "", withWebsite: false,
+    skipClosed: false, limit: "", syncQualify: false, syncSend: false,
+  };
+  let seqSteps = [];
+  let mode = "idle";     // idle | scrape-wizard | seq-decision | seq-wizard | ready | running
+  let step = 0;          // index into the current wizard's question list
+
+  const SCRAPE_STEPS = [
+    { key: "niche", q: "Business type? (e.g. dentists)", type: "text" },
+    { key: "city", q: "Location? (e.g. Austin TX)", type: "text" },
+    { key: "ratings", q: "Include ratings & reviews? (y/n)", type: "yn" },
+    { key: "hours_price", q: "Include hours, price & plus-code? (y/n)", type: "yn" },
+    { key: "emails", q: "Find contact emails? (y/n)", type: "yn" },
+    { key: "socials", q: "Find social profiles? (y/n)", type: "yn" },
+    { key: "website_phones", q: "Find website phone numbers? (y/n)", type: "yn" },
+    { key: "minRating", q: "Minimum rating? (number, or 'any')", type: "text" },
+    { key: "withWebsite", q: "Only businesses with a website? (y/n)", type: "yn" },
+    { key: "skipClosed", q: "Skip closed businesses? (y/n)", type: "yn" },
+    { key: "limit", q: "Limit? (number, or 'all')", type: "text" },
+  ];
+
+  function askCurrentScrapeQuestion() {
+    println(SCRAPE_STEPS[step].q, "ask");
+  }
+
+  function handleScrapeWizard(input) {
+    const q = SCRAPE_STEPS[step];
+    let value = input.trim();
+    if (q.type === "yn") {
+      if (!/^y(es)?$|^n(o)?$/i.test(value)) { println("Please answer y or n.", "warn"); return; }
+      value = YN(value);
+    }
+    cfg[q.key] = value;
+    step++;
+    if (step < SCRAPE_STEPS.length) { askCurrentScrapeQuestion(); return; }
+
+    // wizard complete -> summarize, then ask about sequence
+    blank();
+    println("Got it. Here's what I'll scrape:", "ok");
+    println(`  ${cfg.niche} in ${cfg.city}`, "sys");
+    const on = [];
+    if (cfg.ratings) on.push("ratings");
+    if (cfg.hours_price) on.push("hours/price");
+    if (cfg.emails) on.push("emails");
+    if (cfg.socials) on.push("socials");
+    if (cfg.website_phones) on.push("website phones");
+    println(`  fields: basics${on.length ? ", " + on.join(", ") : " only"}`, "sys");
+    println(`  filters: min rating ${cfg.minRating || "any"}, `
+      + `${cfg.withWebsite ? "website required" : "website optional"}, `
+      + `${cfg.skipClosed ? "skip closed" : "include closed"}, `
+      + `limit ${cfg.limit || "all"}`, "sys");
+    blank();
+    println("Before I start: want to set up a live sequence for leads as they", "ask");
+    println("come in? Type 'set sequence', or 'skip' to just scrape.", "ask");
+    mode = "seq-decision";
+  }
+
+  const SEQ_STEP_NAMES = {
+    "sync outreach": "Qualify each lead the instant it's scraped (no real sending).",
+    "send email with sync": "Also attempt to email each qualified lead instantly.",
+  };
+
+  function handleSeqDecision(input) {
+    const v = input.trim().toLowerCase();
+    if (v === "set sequence") {
+      seqSteps = [];
+      mode = "seq-wizard";
+      blank();
+      println("Sequence builder. Add steps one at a time:", "ask");
+      println("  sync outreach          — qualify leads live as they're found", "sys");
+      println("  send email with sync   — also try sending, live, per lead", "sys");
+      println("Type 'done' when finished, or 'skip' for no sequence.", "sys");
+      return;
+    }
+    if (v === "skip") {
+      mode = "ready";
+      blank();
+      println("No sequence — plain scrape. Type 'run' to start.", "ok");
+      return;
+    }
+    println("Type 'set sequence' or 'skip'.", "warn");
+  }
+
+  function handleSeqWizard(input) {
+    const v = input.trim().toLowerCase();
+    if (v === "done") {
+      cfg.syncQualify = seqSteps.includes("sync outreach") || seqSteps.includes("send email with sync");
+      cfg.syncSend = seqSteps.includes("send email with sync");
+      mode = "ready";
+      blank();
+      if (seqSteps.length) {
+        println("Sequence set:", "ok");
+        seqSteps.forEach((s, i) => println(`  ${i + 1}. ${s}`, "sys"));
+        if (cfg.syncSend) {
+          println("Note: real sending is OFF from this page — 'send email with", "warn");
+          println("sync' will narrate [DRY RUN] previews live, never a real send.", "warn");
+        }
+      } else {
+        println("No steps added — plain scrape.", "sys");
+      }
+      println("Type 'run' to start.", "ok");
+      return;
+    }
+    if (v === "skip") { mode = "ready"; blank(); println("No sequence. Type 'run' to start.", "ok"); return; }
+    if (v === "sync outreach" || v === "send email with sync") {
+      if (seqSteps.includes(v)) { println("Already added.", "warn"); return; }
+      seqSteps.push(v);
+      println("  + " + v, "ok");
+      println("  " + SEQ_STEP_NAMES[v], "dim");
+      return;
+    }
+    println("Unknown step. Try 'sync outreach', 'send email with sync', or 'done'.", "warn");
+  }
+
+  /* ---------------------------------------------------------------------
+     Running the pipeline (SSE, same pattern as the other pages)
+  --------------------------------------------------------------------- */
+  let es = null;
+
+  function setMode(m) {
+    mode = m;
+    badge.textContent = m;
+    badge.style.background = m === "running" ? "rgba(244,183,64,.15)" : "rgba(59,130,246,.15)";
+    badge.style.color = m === "running" ? "#f4b740" : "#7cb0ff";
+  }
+
+  function stageLine(payload) {
+    try {
+      const d = JSON.parse(payload);
+      if (d.stage === "found") println("→ Found: " + d.name, "stage-found");
+      else if (d.stage === "enriched") println("→ Enriched: " + d.name + " — email: " + (d.email || "none found"), "stage-enriched");
+      else if (d.stage === "qualified") println(`→ Qualified: ${d.name} — score ${d.score}, fit: ${d.fit || "-"}, status: ${d.status}`, "stage-qualified");
+      else if (d.stage === "sent") {
+        const label = d.status === "dry_run" ? "[DRY RUN] Would email" : d.status === "sent" ? "Emailed" : "Skipped emailing";
+        println(`→ ${label} ${d.name}${d.email ? " (" + d.email + ")" : ""}`, "stage-sent");
+      }
+    } catch (e) { /* ignore malformed */ }
+  }
+
+  function runPipeline() {
+    setMode("running");
+    blank();
+    println("Starting…", "ok");
+    fetch("/api/live/start", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }).then(async res => {
+      const data = await res.json();
+      if (!res.ok) { println("Error: " + (data.error || "could not start"), "err"); setMode("idle"); return; }
+      println("$ " + data.command, "dim");
+      attachStream();
+    }).catch(() => { println("Server not reachable.", "err"); setMode("idle"); });
+  }
+
+  // Wire (or re-wire) the SSE stream. The server replays the whole run from
+  // the start, so this also restores the terminal after a page reload.
+  function attachStream() {
+    if (es) es.close();
+    es = new EventSource("/stream");
+    es.addEventListener("log", e => println(e.data, "sys"));
+    es.addEventListener("sync", e => stageLine(e.data));
+    es.addEventListener("done", () => {
+      blank();
+      println("Run finished. Type 'start scrape' to run again.", "ok");
+      setMode("idle");
+      es.close();
+    });
+    es.onerror = () => { setMode("idle"); if (es) es.close(); };
+  }
+
+  /* ---------------------------------------------------------------------
+     Top-level command router
+  --------------------------------------------------------------------- */
+  function handleCommand(raw) {
+    const input = raw.trim();
+    if (!input) return;
+    echo(input);
+
+    if (mode === "running") { println("A run is in progress — please wait.", "warn"); return; }
+
+    const low = input.toLowerCase();
+    if (low === "clear") { screen.innerHTML = ""; return; }
+    if (low === "help") { printHelp(); return; }
+    if (low === "status") {
+      println(mode === "idle" ? "Idle. Type 'start scrape' to begin." : "Mid-setup: " + mode, "sys");
+      return;
+    }
+
+    if (mode === "idle") {
+      if (low === "start scrape") {
+        Object.keys(cfg).forEach(k => cfg[k] = typeof cfg[k] === "boolean" ? false : "");
+        step = 0; mode = "scrape-wizard";
+        blank();
+        println("Scrape wizard — answer each question, Enter to continue.", "ask");
+        askCurrentScrapeQuestion();
+        return;
+      }
+      println("Unknown command. Type 'help' for the list.", "warn");
+      return;
+    }
+    if (mode === "scrape-wizard") { handleScrapeWizard(input); return; }
+    if (mode === "seq-decision") { handleSeqDecision(input); return; }
+    if (mode === "seq-wizard") { handleSeqWizard(input); return; }
+    if (mode === "ready") {
+      if (low === "run") { runPipeline(); return; }
+      println("Type 'run' to start, or 'start scrape' to reconfigure.", "warn");
+      return;
+    }
+  }
+
+  cmdline.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      const v = cmdline.value;
+      cmdline.value = "";
+      handleCommand(v);
+    }
+  });
+  document.addEventListener("click", () => cmdline.focus());
+
+  setMode("idle");
+  banner();
+  cmdline.focus();
+
+  // Reconnect to a live run still in progress (e.g. we left and came back).
+  (async function reconnectIfRunning(){
+    try {
+      const r = await fetch("/api/status"); const s = await r.json();
+      if (s.running && s.kind === "live") {
+        setMode("running");
+        println("↻ Reconnected to a run already in progress…", "ok");
+        attachStream();
+      }
+    } catch (e) { /* server not reachable — stay idle */ }
+  })();
+})();
+</script>
+</body>
+</html>

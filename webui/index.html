@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Scraper — Outreach Console</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@450;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: {
+      ink: "#e9edf3", muted: "#9aa6b8", line: "rgba(255,255,255,.10)",
+      accent: "#ff3131", good: "#34d399", warn: "#f4b740", bad: "#f26d6d",
+      pin: "#ff3131", panel: "rgba(17,21,28,.82)",
+    },
+    fontFamily: { sans: ["Inter","system-ui","sans-serif"], mono: ["JetBrains Mono","monospace"] },
+  } } };
+</script>
+<style>
+  html,body { height:100%; margin:0; background:#0b0e13; color:#e9edf3; font-family:Inter,system-ui,sans-serif; overflow:hidden; }
+  #map { position:fixed; inset:0; z-index:0; background:#0b0e13; }
+  .leaflet-container { background:#0b0e13; font-family:inherit; }
+  .leaflet-control-attribution { background:rgba(0,0,0,.5)!important; color:#8b96a8!important; font-size:10px; }
+  .leaflet-control-zoom a { background:rgba(17,21,28,.9)!important; color:#cdd6e4!important; border-color:rgba(255,255,255,.12)!important; }
+  .panel { background:rgba(17,21,28,.82); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.10); }
+  /* ---------- tactical target markers ---------- */
+  .pin { width:22px; height:22px; position:relative; animation:pindrop .3s cubic-bezier(.2,.8,.3,1.2); }
+  .pin::before {            /* focus brackets */
+    content:""; position:absolute; inset:0; border:1.5px solid #ff3131;
+    clip-path:polygon(0 0,34% 0,34% 1.5px,1.5px 1.5px,1.5px 34%,0 34%,
+                      0 66%,1.5px 66%,1.5px calc(100% - 1.5px),34% calc(100% - 1.5px),34% 100%,0 100%,
+                      100% 100%,66% 100%,66% calc(100% - 1.5px),calc(100% - 1.5px) calc(100% - 1.5px),calc(100% - 1.5px) 66%,100% 66%,
+                      100% 34%,calc(100% - 1.5px) 34%,calc(100% - 1.5px) 1.5px,66% 1.5px,66% 0,100% 0);
+  }
+  .pin::after {             /* core */
+    content:""; position:absolute; left:50%; top:50%; width:5px; height:5px;
+    margin:-2.5px 0 0 -2.5px; border-radius:50%; background:#ff3131;
+    box-shadow:0 0 6px 1px rgba(255,49,49,.9);
+  }
+  .pin.cur::before { animation:lock 1.4s ease-out infinite; }
+  .pin.cur::after  { animation:corepulse 1.4s ease-in-out infinite; }
+  @keyframes lock { 0%{transform:scale(1.6); opacity:0} 60%{opacity:1} 100%{transform:scale(1); opacity:.9} }
+  @keyframes corepulse { 0%,100%{box-shadow:0 0 6px 1px rgba(255,49,49,.9)} 50%{box-shadow:0 0 14px 4px rgba(255,49,49,1)} }
+  @keyframes pindrop { from{opacity:0; transform:scale(.4)} to{opacity:1; transform:scale(1)} }
+
+  /* ---------- HUD overlay (pointer-events:none so the map stays usable) ---------- */
+  #hud { position:fixed; inset:0; z-index:400; pointer-events:none; }
+  #hud .grid {            /* targeting graticule */
+    position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,49,49,.055) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,49,49,.055) 1px, transparent 1px);
+    background-size:64px 64px;
+  }
+  #hud .vign { position:absolute; inset:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%); }
+  #hud .scan { position:absolute; left:0; right:0; height:130px;
+    background:linear-gradient(180deg, transparent, rgba(255,49,49,.06) 60%, rgba(255,49,49,.14));
+    border-bottom:1px solid rgba(255,49,49,.28); animation:sweep 7s linear infinite; }
+  @keyframes sweep { 0%{top:-130px} 100%{top:100%} }
+  #hud .cross { position:absolute; left:50%; top:50%; width:46px; height:46px; margin:-23px 0 0 -23px; }
+  #hud .cross::before, #hud .cross::after { content:""; position:absolute; background:rgba(255,49,49,.4); }
+  #hud .cross::before { left:50%; top:0; bottom:0; width:1px; }
+  #hud .cross::after  { top:50%; left:0; right:0; height:1px; }
+  .corner { position:absolute; width:26px; height:26px; border:1.5px solid rgba(255,49,49,.45); }
+  .corner.tl { top:10px; left:10px; border-right:0; border-bottom:0; }
+  .corner.tr { top:10px; right:10px; border-left:0; border-bottom:0; }
+  .corner.bl { bottom:10px; left:10px; border-right:0; border-top:0; }
+  .corner.br { bottom:10px; right:10px; border-left:0; border-top:0; }
+  body.map-focus #hud .grid { opacity:.8; }
+
+  /* telemetry readout */
+  #telemetry { position:fixed; z-index:520; left:356px; top:14px; display:flex; gap:14px;
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.04em;
+    background:rgba(11,14,19,.72); backdrop-filter:blur(10px);
+    border:1px solid rgba(255,49,49,.22); border-radius:8px; padding:6px 12px; color:#9aa6b8; }
+  #telemetry b { color:#ff8080; font-weight:600; }
+  #telemetry .live { color:#34d399; }
+  body.map-focus #telemetry { left:14px; }
+  /* smoother tiles */
+  .leaflet-tile { will-change:opacity; }
+  .leaflet-fade-anim .leaflet-tile { transition:opacity .35s ease-in; }
+  /* pin name labels */
+  .leaflet-tooltip.pinlabel { background:rgba(17,21,28,.9); color:#e9edf3; border:1px solid rgba(255,255,255,.14);
+    border-radius:6px; font-size:11px; font-weight:600; padding:2px 7px; box-shadow:0 2px 8px rgba(0,0,0,.4); white-space:nowrap; }
+  .leaflet-tooltip.pinlabel::before { display:none; }
+  body.no-labels .leaflet-tooltip.pinlabel { display:none; }
+  /* focus-map mode hides the overlay panels */
+  body.map-focus .panel { display:none !important; }
+  /* top control pills */
+  .pillbtn { background:rgba(17,21,28,.82); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.10);
+    color:#cdd6e4; font-size:12px; font-weight:600; padding:7px 12px; border-radius:999px;
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer; transition:border-color .15s; }
+  .pillbtn:hover { border-color:rgba(255,49,49,.5); color:#e9edf3; }
+  .pillbtn.off { opacity:.55; }
+  .navtab { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600; transition:all .15s; cursor:pointer; border:none; background:transparent; text-decoration:none; }
+  .navtab.active { background:#ff3131; color:white; }
+  .navtab:not(.active) { color:#9aa6b8; }
+  .navtab:not(.active):hover { color:#e9edf3; }
+  /* Tailwind's forms plugin replaces the native checkbox (appearance:none +
+     its own background), so accent-color does nothing — the checked fill has
+     to be set explicitly or they stay the plugin's default blue. */
+  input[type=checkbox]{ accent-color:#ff3131; }
+  input[type=checkbox]:checked{ background-color:#ff3131 !important; border-color:#ff3131 !important; }
+  input[type=checkbox]:focus{ --tw-ring-color:#ff3131; outline-color:#ff3131; }
+  ::-webkit-scrollbar{ width:6px; height:6px; } ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.16); border-radius:8px; }
+  .leaflet-popup-content-wrapper{ background:#151a22; color:#e9edf3; border:1px solid rgba(255,255,255,.12); border-radius:10px; }
+  .leaflet-popup-tip{ background:#151a22; } .leaflet-popup-content{ margin:10px 12px; font-size:13px; }
+  select option{ background:#151a22; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<!-- tactical HUD: purely decorative, never intercepts map input -->
+<div id="hud">
+  <div class="grid"></div>
+  <div class="scan"></div>
+  <div class="cross"></div>
+  <div class="vign"></div>
+  <span class="corner tl"></span><span class="corner tr"></span>
+  <span class="corner bl"></span><span class="corner br"></span>
+</div>
+
+<div id="telemetry">
+  <span>LAT <b id="t-lat">--.----</b></span>
+  <span>LON <b id="t-lon">--.----</b></span>
+  <span>ZM <b id="t-zoom">--</b></span>
+  <span>TGT <b id="t-count">0</b></span>
+  <span id="t-status" class="live">● STANDBY</span>
+</div>
+
+<!-- top controls: focus map / labels / sound -->
+<div class="fixed top-3 left-1/2 -translate-x-1/2 z-[600] flex gap-2">
+  <div class="flex items-center gap-2 pl-3 pr-1 py-1 rounded-full bg-black/40 border border-line backdrop-blur">
+    <span class="text-[15px] font-extrabold italic tracking-tight text-ink mr-1">Out<span class="text-accent not-italic">Lead</span></span>
+    <a href="/" class="navtab active">Scrape</a>
+    <a href="/outreach" class="navtab">Outreach</a>
+    <a href="/outreach/campaigns" class="navtab">Campaigns</a>
+    <a href="/outreach/sender" class="navtab">Sender</a>
+  </div>
+  <button id="btn-layer" class="pillbtn"><span class="material-symbols-outlined text-[16px]">radar</span> Tactical</button>
+  <button id="btn-panels" class="pillbtn"><span class="material-symbols-outlined text-[16px]">visibility_off</span> Hide panels</button>
+  <button id="btn-labels" class="pillbtn"><span class="material-symbols-outlined text-[16px]">label</span> Labels</button>
+  <button id="btn-sound" class="pillbtn"><span class="material-symbols-outlined text-[16px]">volume_up</span></button>
+</div>
+
+<!-- LEFT: controls -->
+<section class="panel fixed left-3 top-3 bottom-3 w-[340px] z-[500] rounded-2xl p-5 overflow-y-auto flex flex-col gap-5">
+  <div>
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-accent text-[20px]">travel_explore</span>
+      <span class="text-[12px] font-semibold tracking-wide text-muted uppercase">Scraper</span>
+      <span class="ml-auto text-[10px] font-mono tracking-wider text-muted uppercase bg-white/5 border border-line px-1.5 py-0.5 rounded">LEADS</span>
+    </div>
+    <h1 class="text-[24px] font-extrabold tracking-tight leading-tight">Find leads on the map.</h1>
+    <p class="text-[13.5px] text-muted mt-1">Pick what to search and what to collect, then watch it work the map live.</p>
+  </div>
+
+  <!-- JSON config loader -->
+  <div>
+    <button id="json-toggle" type="button" class="w-full flex items-center justify-center gap-1.5 text-[12px] font-semibold text-accent border border-accent/40 rounded-xl py-2 bg-accent/5 hover:bg-accent/10 transition">
+      <span class="material-symbols-outlined text-[16px]">data_object</span> Load scrape config (JSON)
+    </button>
+    <div id="json-panel" class="hidden mt-2 space-y-2">
+      <textarea id="json-input" rows="4" spellcheck="false" placeholder='Paste one config, or a whole plan (an array / {"scrapes":[…]})' class="w-full bg-black/25 border border-line rounded-xl py-2 px-3 text-[12px] font-mono focus:outline-none focus:border-accent placeholder:text-muted/40"></textarea>
+      <button id="json-parse" type="button" class="w-full py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-line text-[12px] font-semibold">Load</button>
+      <div id="json-list" class="space-y-1"></div>
+      <p id="json-msg" class="text-[11px] text-muted"></p>
+    </div>
+  </div>
+
+  <div class="space-y-3">
+    <div><label class="text-[11px] font-semibold text-muted">Business type</label>
+      <input id="niche" type="text" placeholder="e.g. dentists" autocomplete="off"
+        class="mt-1 w-full bg-black/25 border border-line rounded-xl py-2.5 px-3.5 text-[15px] focus:outline-none focus:border-accent placeholder:text-muted/50"/></div>
+    <div><label class="text-[11px] font-semibold text-muted">Location</label>
+      <input id="city" type="text" placeholder="e.g. Austin TX" autocomplete="off"
+        class="mt-1 w-full bg-black/25 border border-line rounded-xl py-2.5 px-3.5 text-[15px] focus:outline-none focus:border-accent placeholder:text-muted/50"/></div>
+    <div><label class="text-[11px] font-semibold text-muted">…or paste a Google Maps link</label>
+      <input id="url" type="text" placeholder="https://www.google.com/maps/place/…" autocomplete="off"
+        class="mt-1 w-full bg-black/25 border border-line rounded-xl py-2.5 px-3.5 text-[13px] focus:outline-none focus:border-accent placeholder:text-muted/50"/></div>
+  </div>
+
+  <div class="space-y-2.5">
+    <div class="flex justify-between items-center">
+      <h4 class="text-[12px] font-bold">Fields to collect</h4>
+      <select id="preset" class="bg-transparent text-[12px] font-semibold text-accent border-none focus:ring-0 cursor-pointer">
+        <option value="contact">Contact info</option><option value="everything">Everything</option><option value="emails">Emails only</option>
+      </select>
+    </div>
+    <div class="fieldrow space-y-2 text-[13.5px] text-ink/90">
+      <label class="flex items-center justify-between text-muted"><span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-good">lock</span> Business basics</span><input type="checkbox" checked disabled class="rounded"/></label>
+      <label class="flex items-center justify-between cursor-pointer"><span>Phone &amp; website</span><input id="f_phone_website" type="checkbox" class="rounded"/></label>
+      <label class="flex items-center justify-between cursor-pointer"><span>Ratings &amp; reviews</span><input id="f_ratings" type="checkbox" class="rounded"/></label>
+      <label class="flex items-center justify-between cursor-pointer"><span>Hours, price &amp; plus-code</span><input id="f_hours_price" type="checkbox" class="rounded"/></label>
+      <label class="flex items-center justify-between cursor-pointer"><span>Contact emails <span class="text-muted text-[11px]">· visits site</span></span><input id="f_emails" type="checkbox" class="rounded"/></label>
+      <label class="flex items-center justify-between cursor-pointer"><span>Social profiles <span class="text-muted text-[11px]">· visits site</span></span><input id="f_socials" type="checkbox" class="rounded"/></label>
+      <label class="flex items-center justify-between cursor-pointer"><span>Website phone numbers <span class="text-muted text-[11px]">· visits site</span></span><input id="f_website_phones" type="checkbox" class="rounded"/></label>
+    </div>
+  </div>
+
+  <div class="space-y-2.5">
+    <h4 class="text-[12px] font-bold">Filters</h4>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="text-[11px] font-semibold text-muted">Min rating</label>
+        <select id="minRating" class="mt-1 w-full bg-black/25 border border-line rounded-xl py-2 px-3 text-[13px] focus:outline-none focus:border-accent">
+          <option value="">Any</option><option value="3.5">3.5+</option><option value="4">4.0+</option><option value="4.5">4.5+</option></select></div>
+      <div><label class="text-[11px] font-semibold text-muted">Limit</label>
+        <input id="limit" type="number" min="1" placeholder="all" class="mt-1 w-full bg-black/25 border border-line rounded-xl py-2 px-3 text-[13px] focus:outline-none focus:border-accent"/></div>
+    </div>
+    <label class="flex items-center justify-between text-[13.5px] cursor-pointer"><span>Has website only</span><input id="withWebsite" type="checkbox" class="rounded"/></label>
+    <label class="flex items-center justify-between text-[13.5px] cursor-pointer"><span>Skip closed businesses</span><input id="skipClosed" type="checkbox" class="rounded"/></label>
+  </div>
+
+  <div class="mt-auto pt-3 space-y-2">
+    <div class="grid grid-cols-2 gap-2">
+      <button id="go-plain" class="w-full py-3.5 bg-white/10 hover:bg-white/15 border border-line text-ink font-bold rounded-xl text-[13px] transition flex items-center justify-center gap-1.5 disabled:opacity-60">
+        <span id="spin-plain" class="hidden w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"></span>
+        <span id="go-plain-text">Just scrape</span>
+      </button>
+      <button id="go-sync" class="w-full py-3.5 bg-accent hover:brightness-110 text-white font-bold rounded-xl text-[13px] transition flex items-center justify-center gap-1.5 disabled:opacity-60">
+        <span id="spin-sync" class="hidden w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"></span>
+        <span id="go-sync-text">Sync with outreach</span>
+      </button>
+    </div>
+    <label class="flex items-center justify-between text-[12px] text-muted cursor-pointer">
+      <span>Send emails for real (not a preview)</span>
+      <input id="liveSend" type="checkbox" class="rounded"/>
+    </label>
+    <p class="text-[10.5px] text-muted/70 -mt-1">Also requires SEQUENCE['dry_run'] = False in config.py — otherwise "Sync with outreach" only previews sends.</p>
+    <p id="hint" class="text-center text-[11px] text-muted mt-1">Runs on your machine · nothing leaves your computer</p>
+  </div>
+</section>
+
+<!-- RIGHT: status + leads -->
+<section class="panel fixed right-3 top-3 w-[320px] max-h-[calc(100vh-24px)] z-[500] rounded-2xl p-4 flex flex-col gap-3">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2"><span id="lamp" class="w-2 h-2 rounded-full bg-muted"></span><span id="status" class="text-[12px] font-semibold tracking-wide uppercase text-muted">Idle</span></div>
+    <span class="text-[12px] text-muted"><span id="count" class="text-ink font-semibold">0</span> leads</span>
+  </div>
+  <!-- now scanning -->
+  <div id="now" class="hidden rounded-xl bg-black/25 border border-line p-3">
+    <div class="text-[10px] font-semibold text-muted uppercase tracking-wide mb-1">Now scanning</div>
+    <div id="now-name" class="text-[14px] font-semibold truncate">—</div>
+    <div class="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div id="now-bar" class="h-full bg-accent w-0 transition-all"></div></div>
+    <div id="now-prog" class="text-[11px] text-muted mt-1">0 / 0</div>
+  </div>
+  <button id="download" class="flex items-center justify-center gap-2 text-accent font-semibold text-[12px] border border-accent/40 rounded-xl py-2 bg-accent/5 disabled:opacity-40" disabled>
+    <span class="material-symbols-outlined text-[16px]">download</span> Download CSV</button>
+  <div id="leads" class="flex-1 overflow-y-auto min-h-0 space-y-1.5 pr-0.5">
+    <div id="leads-empty" class="text-[13px] text-muted text-center py-8">Leads will appear here and on the map as they're found.</div>
+  </div>
+</section>
+
+<!-- BOTTOM: live log -->
+<section class="panel fixed left-[356px] right-[336px] bottom-3 z-[500] rounded-2xl px-4 py-2.5 h-[132px] flex flex-col gap-1.5 hidden" id="logwrap">
+  <div class="flex items-center gap-2"><span class="material-symbols-outlined text-accent text-[16px]">terminal</span><span class="text-[11px] font-semibold uppercase tracking-wide text-muted">Activity log</span></div>
+  <div id="console" class="flex-1 overflow-y-auto font-mono text-[12px] leading-relaxed text-ink/80"></div>
+</section>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+
+  /* ---------- sound: a soft sonar "ping" per found lead ---------- */
+  let audioCtx = null, soundOn = true;
+  function ping() {
+    if (!soundOn) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const t = audioCtx.currentTime;
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(760, t);
+      o.frequency.exponentialRampToValueAtTime(1180, t + 0.09);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.16, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.33);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.34);
+    } catch (_) {}
+  }
+
+  /* ---------- top controls ---------- */
+  $("btn-panels").onclick = () => {
+    document.body.classList.toggle("map-focus");
+    const on = document.body.classList.contains("map-focus");
+    $("btn-panels").innerHTML = on
+      ? '<span class="material-symbols-outlined text-[16px]">visibility</span> Show panels'
+      : '<span class="material-symbols-outlined text-[16px]">visibility_off</span> Hide panels';
+  };
+  $("btn-labels").onclick = () => {
+    const off = document.body.classList.toggle("no-labels");
+    $("btn-labels").classList.toggle("off", off);
+  };
+  $("btn-sound").onclick = () => {
+    soundOn = !soundOn;
+    $("btn-sound").classList.toggle("off", !soundOn);
+    $("btn-sound").innerHTML = soundOn
+      ? '<span class="material-symbols-outlined text-[16px]">volume_up</span>'
+      : '<span class="material-symbols-outlined text-[16px]">volume_off</span>';
+    if (soundOn) ping();
+  };
+
+  /* ---------- map ----------
+     minZoom + noWrap matter: without them, one scroll over the map zooms out
+     past the world's own size, and Leaflet tiles the planet side by side —
+     you end up staring at five Earths in a letterboxed strip. */
+  const map = L.map("map", { zoomControl:true, attributionControl:true,
+    fadeAnimation:true, zoomAnimation:true, preferCanvas:false,
+    minZoom:3, maxBoundsViscosity:1.0 }).setView([39.5, -98.35], 4);
+  map.setMaxBounds([[-85, -180], [85, 180]]);      // can't pan off the planet
+  const TILE_OPTS = { maxZoom:19, minZoom:3, noWrap:true,
+    bounds:[[-85,-180],[85,180]], updateWhenIdle:true, keepBuffer:6, crossOrigin:true };
+  // Dark vector base = the OSINT/monitoring look; satellite kept as an
+  // alternate for when you want to actually see the buildings.
+  const LAYERS = {
+    tactical: L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      { ...TILE_OPTS, subdomains:"abcd", attribution:"© OpenStreetMap, © CARTO" }),
+    satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { ...TILE_OPTS, attribution:"Imagery © Esri" }),
+  };
+  let layerMode = "tactical";
+  LAYERS.tactical.addTo(map);
+  // Leaflet caches the container size; re-measure when the window (or browser
+  // zoom) changes, otherwise tiles get laid out for the old dimensions.
+  const remeasure = () => map.invalidateSize({ animate:false });
+  window.addEventListener("resize", remeasure);
+  setTimeout(remeasure, 300);
+
+  /* ---------- telemetry readout ---------- */
+  function telemetry(){
+    const c = map.getCenter();
+    $("t-lat").textContent = c.lat.toFixed(4);
+    $("t-lon").textContent = c.lng.toFixed(4);
+    $("t-zoom").textContent = String(map.getZoom()).padStart(2,"0");
+  }
+  map.on("move zoom", telemetry);
+  map.on("mousemove", e => {                      // cursor position while hovering
+    $("t-lat").textContent = e.latlng.lat.toFixed(4);
+    $("t-lon").textContent = e.latlng.lng.toFixed(4);
+  });
+  map.on("mouseout", telemetry);
+  telemetry();
+
+  $("btn-layer").onclick = () => {
+    map.removeLayer(LAYERS[layerMode]);
+    layerMode = layerMode === "tactical" ? "satellite" : "tactical";
+    LAYERS[layerMode].addTo(map);
+    $("btn-layer").innerHTML = layerMode === "tactical"
+      ? '<span class="material-symbols-outlined text-[16px]">radar</span> Tactical'
+      : '<span class="material-symbols-outlined text-[16px]">satellite_alt</span> Satellite';
+  };
+
+  let firstFly = false;
+  const markers = new Map();      // place_key -> {marker, obj}
+
+  function coords(u){ const m=(u||"").match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/); return m?[+m[1],+m[2]]:null; }
+  function makePin(latlng, obj){
+    const icon = L.divIcon({ className:"", html:'<div class="pin"></div>', iconSize:[14,14], iconAnchor:[7,7] });
+    const mk = L.marker(latlng, { icon }).addTo(map).bindPopup(popupHtml(obj));
+    mk.bindTooltip(obj.name || "", { permanent:true, direction:"right", offset:[8,0], className:"pinlabel" });
+    return mk;
+  }
+  function markCurrent(mk){
+    // re-render the marker icon as the current (pulsing) one
+    document.querySelectorAll(".leaflet-marker-icon .pin.cur").forEach(e=>e.classList.remove("cur"));
+    const el = mk.getElement() && mk.getElement().querySelector(".pin");
+    if (el) el.classList.add("cur");
+  }
+
+  /* ---------- fields ---------- */
+  const TOGGLES = ["phone_website","ratings","hours_price","emails","socials","website_phones"];
+  const PRESETS = {
+    contact:{phone_website:1,emails:1,website_phones:1}, everything:{phone_website:1,ratings:1,hours_price:1,emails:1,socials:1,website_phones:1}, emails:{emails:1},
+  };
+  function applyPreset(n){ const p=PRESETS[n]||{}; TOGGLES.forEach(k=>$("f_"+k).checked=!!p[k]); }
+  $("preset").addEventListener("change", e=>applyPreset(e.target.value)); applyPreset("contact");
+  function groups(){ const g=["basics"]; TOGGLES.forEach(k=>{ if($("f_"+k).checked) g.push(k); }); return g; }
+
+  /* ---------- JSON config loader ---------- */
+  const jsonMsg=$("json-msg"), jsonList=$("json-list");
+  let currentServiceFit=null;   // the email routing key from a loaded config
+  $("json-toggle").onclick=()=>$("json-panel").classList.toggle("hidden");
+  // typing a business type by hand means "not one of the tagged configs" —
+  // clear the routing key so we don't mis-tag a manual scrape.
+  $("niche").addEventListener("input", ()=>{ currentServiceFit=null; });
+  function applyConfig(c){
+    currentServiceFit = c.serviceFit || null;
+    if(c.niche!=null) $("niche").value=c.niche;
+    if(c.city!=null) $("city").value=c.city;
+    if(c.url!=null) $("url").value=c.url;
+    if(Array.isArray(c.fields)) TOGGLES.forEach(k=>$("f_"+k).checked=c.fields.includes(k));
+    if("minRating" in c) $("minRating").value=c.minRating==null?"":String(c.minRating);
+    if("withWebsite" in c) $("withWebsite").checked=!!c.withWebsite;
+    if("skipClosed" in c) $("skipClosed").checked=!!c.skipClosed;
+    if("limit" in c) $("limit").value=c.limit==null?"":c.limit;
+    jsonMsg.textContent="Loaded: "+(c.label||c.niche||"config")+" — review the fields, then Just scrape / Sync with outreach.";
+  }
+  $("json-parse").onclick=()=>{
+    let data; try{ data=JSON.parse($("json-input").value); }
+    catch(e){ jsonMsg.textContent="That's not valid JSON — check for a stray comma or quote."; jsonList.innerHTML=""; return; }
+    const arr=Array.isArray(data)?data:(Array.isArray(data.scrapes)?data.scrapes:[data]);
+    if(arr.length===1){ applyConfig(arr[0]); jsonList.innerHTML=""; return; }
+    jsonMsg.textContent=arr.length+" configs loaded — click one to fill the form.";
+    jsonList.innerHTML="";
+    arr.forEach((c,i)=>{
+      const b=document.createElement("button");
+      b.type="button";
+      b.className="w-full text-left px-3 py-1.5 rounded-lg bg-black/25 border border-line hover:border-accent/50 text-[12px] transition";
+      b.textContent=(i+1)+". "+(c.label||((c.niche||"?")+" — "+(c.city||"?")));
+      b.onclick=()=>applyConfig(c);
+      jsonList.appendChild(b);
+    });
+  };
+
+  const SOCIALS=["facebook","instagram","linkedin","youtube","tiktok","twitter"];
+  const SOC_ABBR={facebook:"FB",instagram:"IG",linkedin:"LI",youtube:"YT",tiktok:"TT",twitter:"X"};
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function dot(o){ const c=o.email_status==="valid"?"#34d399":o.email_status==="risky"?"#f4b740":"#8b96a8"; return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:5px"></span>`; }
+  function popupHtml(o){
+    const g=groups(); const L2=[];
+    L2.push(`<b>${esc(o.name)}</b>`);
+    if(g.includes("basics")&&o.category) L2.push(esc(o.category));
+    if(g.includes("ratings")&&o.rating) L2.push(`★ ${o.rating} (${o.reviews||0})`);
+    if(g.includes("phone_website")&&(o.phone||o.website_phones)) L2.push(esc(o.phone||o.website_phones));
+    if(g.includes("phone_website")&&o.website) L2.push(`<a href="${esc(o.website)}" target="_blank" style="color:#ff8080">website ↗</a>`);
+    if(g.includes("emails")&&o.email) L2.push(`${dot(o)}${esc(o.email)}`);
+    if(g.includes("socials")){ const s=SOCIALS.filter(x=>o[x]).map(x=>`<a href="${esc(o[x])}" target="_blank" style="color:#ff8080">${SOC_ABBR[x]}</a>`).join(" "); if(s) L2.push(s); }
+    if(g.includes("hours_price")&&o.open_state) L2.push(esc(o.open_state)+(o.price_level?" · "+esc(o.price_level):""));
+    return L2.join("<br>");
+  }
+
+  /* ---------- leads list ---------- */
+  const leadsBox=$("leads");
+  function addToList(o){
+    $("leads-empty")?.remove();
+    let row=document.getElementById("row-"+o.place_key);
+    if(!row){ row=document.createElement("div"); row.id="row-"+o.place_key;
+      row.className="rounded-lg bg-black/20 border border-line px-3 py-2 cursor-pointer hover:border-accent/50";
+      row.onclick=()=>{ const rec=markers.get(o.place_key); if(rec){ map.flyTo(rec.marker.getLatLng(),15); rec.marker.openPopup(); } };
+      leadsBox.appendChild(row);
+    }
+    const em = o.email?`${dot(o)}${esc(o.email)}`:(o.website?`<span class="text-muted">${esc(o.website.replace(/^https?:\/\/(www\.)?/,''))}</span>`:"");
+    row.innerHTML=`<div class="text-[13px] font-medium truncate">${esc(o.name)}</div><div class="text-[11px] text-muted truncate">${em}</div>`;
+  }
+
+  /* ---------- results state ---------- */
+  const leads=new Map();
+  function addLead(o){
+    if(leads.has(o.place_key)){ updLead(o); return; }
+    leads.set(o.place_key,o);
+    $("count").textContent=leads.size; $("download").disabled=false;
+    $("t-count").textContent=leads.size;
+    const c=coords(o.maps_url);
+    if(c){
+      const mk=makePin(c,o); markers.set(o.place_key,{marker:mk,obj:o}); markCurrent(mk);
+      // set the zoom ONCE, then only pan — avoids constant tile reloads (smooth)
+      if(!firstFly){ firstFly=true; map.setView(c, 14, {animate:true}); }
+      else { map.panTo(c, {animate:true, duration:0.6, easeLinearity:0.25}); }
+    }
+    ping();
+    addToList(o);
+  }
+  function updLead(o){
+    const cur=leads.get(o.place_key); if(!cur) return; Object.assign(cur,o);
+    const rec=markers.get(o.place_key); if(rec){ rec.marker.setPopupContent(popupHtml(cur)); }
+    addToList(cur);
+  }
+
+  /* ---------- log ---------- */
+  let firstLog=true;
+  function logLine(t){
+    if(firstLog){ $("console").innerHTML=""; firstLog=false; }
+    const s=document.createElement("div"); const l=(t||"").toLowerCase();
+    s.className = /\berror|dead\b/.test(l)?"text-bad" : /\[warn\]|cooling|stalled|skipped/.test(l)?"text-warn"
+      : /->|done:|collected|emails:|deliverable/.test(l)?"text-good" : "text-ink/80";
+    s.textContent=t||" "; $("console").appendChild(s); $("console").scrollTop=$("console").scrollHeight;
+  }
+
+  function setRunning(on, which){
+    ["go-plain","go-sync"].forEach(id=>$(id).disabled=on);
+    if(which==="plain"||!on){ $("spin-plain").classList.toggle("hidden", !(on&&which==="plain")); $("go-plain-text").textContent=(on&&which==="plain")?"Scanning…":"Just scrape"; }
+    if(which==="sync"||!on){ $("spin-sync").classList.toggle("hidden", !(on&&which==="sync")); $("go-sync-text").textContent=(on&&which==="sync")?"Scanning…":"Sync with outreach"; }
+    $("status").textContent=on?"Scanning":"Done"; $("lamp").style.background=on?"#ff3131":"#34d399";
+    const t=$("t-status");
+    t.textContent = on ? "● ACQUIRING" : "● STANDBY";
+    t.style.color = on ? "#ff3131" : "#34d399";
+    $("logwrap").classList.remove("hidden");
+  }
+
+  /* ---------- CSV download ---------- */
+  const CSV_G={basics:["name","category","address"],phone_website:["phone","website"],ratings:["rating","reviews"],hours_price:["open_state","hours","price_level","plus_code"],emails:["email","email_status","all_emails"],socials:SOCIALS,website_phones:["website_phones"]};
+  const CSV_ORDER=["name","category","phone","website_phones","website","email","email_status","all_emails",...SOCIALS,"address","rating","reviews","open_state","hours","price_level","plus_code","query","maps_url"];
+  $("download").addEventListener("click",()=>{
+    const want=new Set(); groups().forEach(g=>(CSV_G[g]||[]).forEach(c=>want.add(c))); want.add("query"); want.add("maps_url");
+    const cols=CSV_ORDER.filter(c=>want.has(c)); const rows=[cols.join(",")];
+    for(const o of leads.values()) rows.push(cols.map(c=>{const v=o[c]==null?"":String(o[c]); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(","));
+    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob(["﻿"+rows.join("\n")],{type:"text/csv"})); a.download="leads.csv"; a.click();
+  });
+
+  /* ---------- run ---------- */
+  let es=null;
+  function syncLine(payload){
+    try{
+      const d=JSON.parse(payload);
+      if(d.stage==="found") logLine("→ Found: "+d.name);
+      else if(d.stage==="enriched") logLine("→ Enriched: "+d.name+" — email: "+(d.email||"none found"));
+      else if(d.stage==="qualified") logLine(`→ Qualified: ${d.name} — score ${d.score}, fit ${d.fit||"-"} (${d.status})`);
+      else if(d.stage==="sent"){ const label=d.status==="sent"?"Emailed":d.status==="dry_run"?"[preview] would email":"Skipped emailing"; logLine(`→ ${label} ${d.name}`); }
+    }catch(_){}
+  }
+
+  async function start(mode){
+    const niche=$("niche").value.trim(), city=$("city").value.trim(), url=$("url").value.trim();
+    $("hint").className="text-center text-[11px] text-muted mt-2";
+    if(mode==="sync" && (!niche||!city)){ $("hint").className="text-center text-[11px] text-bad mt-2"; $("hint").textContent="Sync with outreach needs a business type + location (not a pasted link)."; return; }
+    if(!url && (!niche||!city)){ $("hint").className="text-center text-[11px] text-bad mt-2"; $("hint").textContent="Enter a business type + location, or paste a Maps link."; return; }
+    firstFly=false;
+    try { audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); } catch(_){}
+    leads.clear(); markers.forEach(r=>map.removeLayer(r.marker)); markers.clear();
+    leadsBox.innerHTML='<div id="leads-empty" class="text-[13px] text-muted text-center py-8">Leads will appear here and on the map as they’re found.</div>';
+    $("count").textContent="0"; $("download").disabled=true; firstLog=true; $("console").innerHTML=""; $("now").classList.add("hidden");
+    setRunning(true, mode);
+
+    const base={ niche, city, limit:$("limit").value?parseInt($("limit").value,10):null,
+      minRating:$("minRating").value||null, withWebsite:$("withWebsite").checked, skipClosed:$("skipClosed").checked, fields:groups(),
+      serviceFit:currentServiceFit };
+    const endpoint = mode==="sync" ? "/api/live/start" : "/start";
+    const payload = mode==="sync"
+      ? { ...base, syncQualify:true, syncSend:true, live:$("liveSend").checked }
+      : { ...base, url };
+    try{
+      const res=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const data=await res.json();
+      if(!res.ok){ $("hint").className="text-center text-[11px] text-bad mt-2"; $("hint").textContent=data.error||"Could not start."; setRunning(false, mode); return; }
+      logLine("$ "+(data.command||"scan"));
+    }catch(e){ $("hint").className="text-center text-[11px] text-bad mt-2"; $("hint").textContent="Server not reachable."; setRunning(false, mode); return; }
+
+    attachStream(mode);
+  }
+
+  // Wire (or re-wire) the live SSE stream. The server replays the whole
+  // buffered run from the start, so this also RESTORES the view after a
+  // page reload — the logs, leads and map pins all come back.
+  function attachStream(mode){
+    if(es) es.close();
+    es=new EventSource("/stream");
+    es.addEventListener("log", e=>logLine(e.data));
+    es.addEventListener("lead", e=>{ try{ addLead(JSON.parse(e.data)); }catch(_){} });
+    es.addEventListener("leadupdate", e=>{ try{ updLead(JSON.parse(e.data)); }catch(_){} });
+    es.addEventListener("sync", e=>syncLine(e.data));
+    es.addEventListener("cursor", e=>{ try{ const c=JSON.parse(e.data); $("now").classList.remove("hidden");
+      $("now-name").textContent=c.name||"—"; $("now-prog").textContent=`${c.i} / ${c.total}`;
+      $("now-bar").style.width=(c.total?Math.round(c.i/c.total*100):0)+"%"; }catch(_){} });
+    es.addEventListener("done", ()=>{ logLine(""); logLine("✓ Done — "+leads.size+" leads. Download the CSV on the right.");
+      if(mode==="plain") logLine("→ These leads are saved but NOT in outreach yet: open the Outreach page and click \"Run qualifier\", then \"Run outreach pass\" to add them. (Or use \"Sync with outreach\" next time to do it automatically.)");
+      $("now").classList.add("hidden"); es.close(); setRunning(false, mode); });
+    es.onerror=()=>{ if(es) es.close(); setRunning(false, mode); $("status").textContent="Disconnected"; };
+  }
+  $("go-plain").addEventListener("click", ()=>start("plain"));
+  $("go-sync").addEventListener("click", ()=>start("sync"));
+  ["niche","city","url"].forEach(id=>$(id).addEventListener("keydown", e=>{ if(e.key==="Enter") start("plain"); }));
+
+  // If a scrape/sync run is still going (e.g. we left this page and came
+  // back), reconnect to it instead of showing an idle dashboard.
+  (async function reconnectIfRunning(){
+    try{
+      const r=await fetch("/api/status"); const s=await r.json();
+      if(s.running && (s.kind==="scrape"||s.kind==="live")){
+        const mode = s.kind==="live" ? "sync" : "plain";
+        firstFly=false;
+        setRunning(true, mode);
+        logLine("↻ Reconnected to a run already in progress…");
+        attachStream(mode);
+      }
+    }catch(_){ /* server not reachable — leave the page idle */ }
+  })();
+})();
+</script>
+</body>
+</html>

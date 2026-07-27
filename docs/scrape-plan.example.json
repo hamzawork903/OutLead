@@ -1,0 +1,38 @@
+{
+  "_readme": "Example scrape plan. Paste this whole file into the scraper page's 'Load scrape config (JSON)' button, then click any row to fill the form. Edit the niches and cities to match who YOU sell to. 'serviceFit' is a free-text tag stored on every lead from that run, so you can group and send by business type later.",
+  "scrapes": [
+    {
+      "label": "1. Commercial roofing — Dallas, TX",
+      "niche": "commercial roofing contractors",
+      "city": "Dallas, TX",
+      "fields": ["basics", "phone_website", "ratings", "emails"],
+      "minRating": null,
+      "withWebsite": true,
+      "skipClosed": true,
+      "limit": 50,
+      "serviceFit": "commercial_contractor"
+    },
+    {
+      "label": "2. HVAC companies — Houston, TX",
+      "niche": "HVAC companies",
+      "city": "Houston, TX",
+      "fields": ["basics", "phone_website", "ratings", "emails"],
+      "minRating": 4.0,
+      "withWebsite": true,
+      "skipClosed": true,
+      "limit": 50,
+      "serviceFit": "commercial_contractor"
+    },
+    {
+      "label": "3. Dental practices — Birmingham, UK",
+      "niche": "dental practices",
+      "city": "Birmingham, UK",
+      "fields": ["basics", "phone_website", "ratings", "emails"],
+      "minRating": null,
+      "withWebsite": true,
+      "skipClosed": true,
+      "limit": 50,
+      "serviceFit": "dental"
+    }
+  ]
+}
