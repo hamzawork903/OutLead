@@ -13,7 +13,7 @@ def check(name, cond, detail=""):
     print(f"  ok: {name}")
 
 # ---------- cleaning (the boundary where hostile UGC is tamed) ----------
-from scraper.reviews import _clean
+from scraper.reviews import _clean, _merge, _readable
 from config import REVIEWS
 
 raw = [
@@ -37,6 +37,29 @@ many = [{"stars": "5 stars", "text": "y" * 400, "when": None, "owner_replied": F
 check("total budget enforced",
       sum(len(r["text"]) for r in _clean(many)) <= REVIEWS["max_chars_total"])
 check("empty input is safe", _clean([]) == [])
+
+# ---------- merge policy: complaints must outrank praise ----------
+# The char budget truncates the tail, so a low-rated review passed in first
+# has to survive a flood of five-star praise or the pain signal is lost.
+complaint = {"stars": "1 star", "owner_replied": False, "when": None,
+             "text": "Called four times about a filling and nobody ever answered."}
+praise = [{"stars": "5 stars", "owner_replied": False, "when": None,
+           "text": f"Absolutely wonderful visit number {i}, " + "lovely staff. " * 30}
+          for i in range(8)]
+merged = _clean(_merge([complaint], praise))
+check("low-rated review survives the char budget",
+      any("nobody ever answered" in r["text"] for r in merged), str(merged)[:120])
+check("...and comes first", merged[0]["stars"] == 1.0)
+check("praise still included when there's room", len(merged) > 1)
+
+dupe = dict(complaint)
+check("duplicate reviews collapse", len(_merge([complaint], [dupe])) == 1)
+check("merge keeps first-list order",
+      _merge([complaint], praise)[0]["text"] == complaint["text"])
+check("merge drops empty text", _merge([{"text": "  "}], [complaint]) == [complaint])
+check("merge of two empties is safe", _merge([], []) == [])
+check("_readable counts only cards with text",
+      _readable([{"text": "hello there"}, {"text": ""}, {}]) == 1)
 
 # ---------- qualifier signals ----------
 from qualifier.qualify import review_signals, score_lead, fit_service, qualify

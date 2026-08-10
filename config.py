@@ -109,7 +109,17 @@ REVIEWS = {
     "max_chars_each": 400,      # one rambling review can't eat the budget
     "max_chars_total": 1500,    # ceiling on what reaches the LLM prompt
     "panel_timeout_ms": 8000,   # give up on the panel rather than hang the run
+    "tab_attempts": 4,          # the tab strip hydrates after the h1 does
+    "tab_wait_ms": 600,         # pause between those attempts
+    "scroll_wait_ms": 900,      # let each lazy-load land before scrolling again
     "expand_more": True,        # click "More" for untruncated review text
+    "expand_passes": 3,         # expanding re-renders; later cards need another go
+    "expand_wait_ms": 700,      # time for the expanded text to render
+    # Maps sorts by "Most relevant", which is nearly all praise. The complaints
+    # are the buying signal, so fetch a few of the worst on purpose.
+    "include_lowest_rated": True,
+    "lowest_rated_max": 3,      # kept first, so the char budget can't drop them
+    "sort_wait_ms": 1200,       # menu open / list re-sort
 }
 
 # ---------------------------------------------------------- reliability ----

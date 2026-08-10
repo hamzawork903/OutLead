@@ -1,130 +1,55 @@
 """
 Review capture — the one field that needs its own interaction.
 
-Everything else in a listing is in the panel Maps already rendered, so the
-extractor reads it in a single evaluate(). Reviews are behind a tab click and
-a lazy-loading scroll panel, which makes this both the slowest field and the
-most fragile: the reviews DOM is generated React with churn-prone class names,
-unlike the `data-item-id` anchors the rest of the extractor leans on.
+Everything else in a listing sits in the panel Maps already rendered, so the
+extractor reads it in a single evaluate(). Reviews are behind a tab click, a
+lazy-loading scroll panel and a sort menu, which makes this the slowest and
+most fragile field. Driving that panel lives in review_dom.py; this file
+decides what we ask for and what we keep.
 
-So this module is written to FAIL SOFT. Every step is guarded and any problem
-returns whatever was gathered so far (usually nothing) rather than raising —
-a lead with no reviews is still a perfectly good lead, and losing the whole
-scrape because Google reshuffled a class name would be absurd.
+Two policies worth knowing:
 
-Selector strategy, most stable first:
-  container   div[data-review-id]        — a real data attribute, survives redesigns
-  stars       [role="img"][aria-label*="star"]  — accessibility text, rarely changes
-  text        longest text node in the container that isn't the name/date
-  owner reply detected by phrase, not class
+  * A read is never allowed to go backwards. We read what's on screen first
+    and only then scroll for more, keeping whichever read was best — so a
+    scroll that upsets the panel can fail to add but can never take away.
+
+  * We deliberately go and fetch the worst reviews (see review_dom.sort_lowest).
+    Praise is pleasant; a customer complaining they can't get anyone on the
+    phone is the reason this feature exists.
+
+It fails soft — a lead with no reviews is still a good lead — but never
+silently: a card we can see and can't read is logged as a warning, because a
+quiet [] once hid a bug that lost reviews on 41% of leads.
 """
 
 import re
 
 from config import REVIEWS, TIMEOUTS_MS
 from core.logbook import get_logger
+from scraper import review_dom
 
 log = get_logger(__name__)
 
-# "Reviews" tab / button. Maps has shipped several shapes of this; try them in
-# order of how stable they've proven, and fall back to matching by text.
-_TAB_SELECTORS = (
-    'button[role="tab"][aria-label*="Reviews"]',
-    'button[aria-label*="Reviews for"]',
-    'button[jsaction*="pane.reviewChart.moreReviews"]',
-    'button[role="tab"]:has-text("Reviews")',
-)
-
 _STARS_RE = re.compile(r"([0-9](?:\.[0-9])?)\s*star", re.IGNORECASE)
-_OWNER_REPLY_RE = re.compile(r"response from the owner", re.IGNORECASE)
-
-# Runs inside the page: read every loaded review card. Returns raw strings;
-# all cleaning happens in Python where it's testable.
-_REVIEWS_JS = r"""(maxCount) => {
-    const cards = [...document.querySelectorAll('div[data-review-id]')]
-        // review cards carry an aria-label with the reviewer name; the
-        // container for the *whole list* also matches, so keep only leaves
-        .filter(el => !el.querySelector('div[data-review-id]'));
-
-    const out = [];
-    for (const card of cards.slice(0, maxCount)) {
-        const starEl = card.querySelector('[role="img"][aria-label*="star"], [aria-label*="star"]');
-        const stars = starEl ? (starEl.getAttribute('aria-label') || '') : '';
-
-        // The review body is the longest text block in the card that isn't
-        // the owner's reply. Class names change; length doesn't.
-        const ownerBlock = [...card.querySelectorAll('div')]
-            .find(d => /response from the owner/i.test(d.textContent || ''));
-        let best = '';
-        for (const el of card.querySelectorAll('span, div')) {
-            if (ownerBlock && ownerBlock.contains(el)) continue;
-            if (el.querySelector('span, div')) continue;      // leaf nodes only
-            const t = (el.textContent || '').trim();
-            if (t.length > best.length) best = t;
-        }
-
-        // Relative date: short text ending in "ago", or an absolute month.
-        let when = null;
-        for (const el of card.querySelectorAll('span')) {
-            const t = (el.textContent || '').trim();
-            if (/\b(ago|week|month|year|day)s?\b/i.test(t) && t.length < 30) { when = t; break; }
-        }
-
-        out.push({
-            stars: stars,
-            text: best,
-            when: when,
-            owner_replied: !!ownerBlock,
-        });
-    }
-    return out;
-}"""
 
 
-def _find_tab(page):
-    for sel in _TAB_SELECTORS:
-        try:
-            el = page.locator(sel).first
-            if el.count() > 0 and el.is_visible():
-                return el
-        except Exception:                       # selector unsupported / detached
+def _readable(raw_reviews: list) -> int:
+    """How many raw cards actually carried text — the measure of a good read."""
+    return sum(1 for r in raw_reviews if (r.get("text") or "").strip())
+
+
+def _merge(first: list, second: list) -> list:
+    """Both lists, first one's order preserved, duplicates dropped. Order is
+    load-bearing: the char budget in _clean truncates the tail, so whatever
+    matters most has to be passed in first."""
+    merged, seen = [], set()
+    for review in [*first, *second]:
+        key = (review.get("text") or "").strip()[:80].lower()
+        if not key or key in seen:
             continue
-    return None
-
-
-def _scroll_panel(page, rounds: int) -> None:
-    """Scroll the reviews list so the lazy loader fetches more. Targets the
-    scrollable ancestor of the review cards rather than a class name."""
-    for _ in range(rounds):
-        try:
-            page.evaluate("""() => {
-                const card = document.querySelector('div[data-review-id]');
-                if (!card) return;
-                let el = card.parentElement;
-                while (el && el.scrollHeight <= el.clientHeight) el = el.parentElement;
-                if (el) el.scrollTop = el.scrollHeight;
-            }""")
-            page.wait_for_timeout(900)          # let the lazy load land
-        except Exception:
-            return
-
-
-def _expand_more(page) -> None:
-    """Click the 'More' buttons so we capture full review text, not a
-    truncated preview. Best-effort: any failure just means shorter text."""
-    try:
-        page.evaluate("""() => {
-            for (const b of document.querySelectorAll('button')) {
-                const label = (b.getAttribute('aria-label') || '') + ' ' + (b.textContent || '');
-                if (/^\\s*(More|See more)\\s*$/i.test(b.textContent || '') ||
-                    /see more/i.test(label)) {
-                    try { b.click(); } catch (e) {}
-                }
-            }
-        }""")
-        page.wait_for_timeout(400)
-    except Exception:
-        pass
+        seen.add(key)
+        merged.append(review)
+    return merged
 
 
 def _clean(raw_reviews: list) -> list:
@@ -153,35 +78,71 @@ def _clean(raw_reviews: list) -> list:
     return cleaned
 
 
-def collect_reviews(page, business_name: str = "") -> list:
-    """Open the reviews tab on an already-loaded listing and return up to
-    REVIEWS['max_per_lead'] cleaned reviews. Returns [] on any failure —
-    never raises, never costs the caller its lead."""
-    tab = _find_tab(page)
+def _open_panel(page, business_name: str) -> bool:
+    """Click through to the reviews list. False (logged) if it won't open."""
+    tab = review_dom.find_tab(page)
     if tab is None:
-        log.debug("%s: no reviews tab found (business may have none)", business_name)
-        return []
-
+        log.info("  %s: no reviews tab — skipping reviews", business_name)
+        return False
     try:
         tab.click(timeout=TIMEOUTS_MS["click"])
         page.wait_for_selector("div[data-review-id]",
                                timeout=REVIEWS["panel_timeout_ms"])
+        return True
     except Exception as err:
-        log.debug("%s: reviews panel didn't open (%s)", business_name,
-                  type(err).__name__)
-        return []
+        log.info("  %s: reviews panel didn't open (%s)", business_name,
+                 type(err).__name__)
+        return False
 
-    _scroll_panel(page, REVIEWS["scroll_rounds"])
+
+def _best_read(page) -> list:
+    """Read the panel, scrolling for more, keeping the best read we managed."""
+    best = []
+    for _ in range(REVIEWS["scroll_rounds"] + 1):
+        if REVIEWS["expand_more"]:
+            review_dom.expand_more(page)
+        raw = review_dom.read_cards(page, REVIEWS["max_per_lead"])
+        if _readable(raw) > _readable(best):
+            best = raw
+        if len(best) >= REVIEWS["max_per_lead"]:
+            break
+        review_dom.scroll_once(page)
+    return best
+
+
+def _worst_reviews(page) -> list:
+    """The lowest-rated reviews, where the complaints live. [] if unavailable."""
+    if not REVIEWS["include_lowest_rated"]:
+        return []
+    if not review_dom.sort_lowest(page):
+        return []
     if REVIEWS["expand_more"]:
-        _expand_more(page)
+        review_dom.expand_more(page)
+    raw = review_dom.read_cards(page, REVIEWS["max_per_lead"])
+    return raw[:REVIEWS["lowest_rated_max"]]
 
-    try:
-        raw = page.evaluate(_REVIEWS_JS, REVIEWS["max_per_lead"])
-    except Exception as err:
-        log.warning("%s: review extraction failed (%s) — continuing without "
-                    "reviews", business_name, type(err).__name__)
+
+def collect_reviews(page, business_name: str = "") -> list:
+    """Open the reviews tab on an already-loaded listing and return up to
+    REVIEWS['max_per_lead'] cleaned reviews, complaints first. Returns [] on
+    any failure — never raises, never costs the caller its lead."""
+    if not _open_panel(page, business_name):
         return []
 
-    reviews = _clean(raw or [])
-    log.debug("%s: captured %d review(s)", business_name, len(reviews))
+    relevant = _best_read(page)
+    if not relevant:
+        log.info("  %s: reviews panel opened but held no cards", business_name)
+        return []
+    # Cards on screen but nothing readable in them means our selectors have
+    # drifted, not that the business has no reviews. Never let that be silent.
+    if not _readable(relevant):
+        log.warning("%s: %d review card(s) visible but no text extracted — "
+                    "the reviews DOM has changed", business_name, len(relevant))
+        return []
+
+    reviews = _clean(_merge(_worst_reviews(page), relevant))
+    truncated = sum(1 for r in reviews if r["text"].rstrip().endswith("…"))
+    if truncated:
+        log.warning("%s: %d/%d review(s) still truncated — 'More' didn't expand",
+                    business_name, truncated, len(reviews))
     return reviews
