@@ -85,6 +85,9 @@ HARD RULES:
 - dashes: use a dash as punctuation AT MOST ONCE per email, and only if truly \
 needed. Prefer commas and full stops. (Hyphens inside words like "family-owned" \
 or "24-hour" are fine.)
+- if customer reviews are supplied, use them for a true, specific observation \
+about the business, but NEVER quote a review word-for-word and NEVER name or \
+refer to an individual reviewer. Write it as something you noticed.
 - the ONLY link allowed is the placeholder [BOOK_LINK] — never a real URL or \
 email address
 - no greeting (no "Hi ...") — the system adds it
@@ -173,6 +176,37 @@ def validate(raw: str) -> dict | None:
     return {"greeting_name": name, "steps": steps}
 
 
+def _review_lines(lead: dict) -> list:
+    """Customer reviews as prompt lines. This is the strongest personalisation
+    material we have — what customers SAY beats what the business claims about
+    itself — but it's also user-generated text from strangers, so it's already
+    length-capped and control-stripped at capture (scraper/reviews.py) and the
+    prompt forbids quoting reviewer names."""
+    raw = lead.get("reviews_text")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+    if not raw:
+        return []
+    lines, used = [], 0
+    for r in raw:
+        text = (r.get("text") or "").strip()
+        if not text:
+            continue
+        if used + len(text) > LLM["max_site_chars"]:
+            break
+        used += len(text)
+        stars = r.get("stars")
+        when = r.get("when")
+        tag = f"{stars}/5" if stars else "review"
+        if when:
+            tag += f", {when}"
+        lines.append(f"- ({tag}) {text}")
+    return lines
+
+
 def _lead_brief(lead: dict, site_text: str) -> str:
     parts = [f"Business name: {lead.get('name') or 'unknown'}",
              f"Type: {lead.get('category') or 'local business'}"]
@@ -181,6 +215,12 @@ def _lead_brief(lead: dict, site_text: str) -> str:
         parts.append(f"Area: {query.split(' in ', 1)[1]}")
     if lead.get("rating"):
         parts.append(f"Google rating: {lead['rating']} ({lead.get('reviews') or 0} reviews)")
+
+    reviews = _review_lines(lead)
+    if reviews:
+        parts.append("\nWhat their customers say (use these for a specific, "
+                     "true observation — never name or quote a reviewer):\n"
+                     + "\n".join(reviews))
     parts.append("\nWebsite text:\n" + (site_text or "")[:LLM["max_site_chars"]])
     return "\n".join(parts)
 

@@ -199,6 +199,7 @@
       <label class="flex items-center justify-between cursor-pointer"><span>Contact emails <span class="text-muted text-[11px]">· visits site</span></span><input id="f_emails" type="checkbox" class="rounded"/></label>
       <label class="flex items-center justify-between cursor-pointer"><span>Social profiles <span class="text-muted text-[11px]">· visits site</span></span><input id="f_socials" type="checkbox" class="rounded"/></label>
       <label class="flex items-center justify-between cursor-pointer"><span>Website phone numbers <span class="text-muted text-[11px]">· visits site</span></span><input id="f_website_phones" type="checkbox" class="rounded"/></label>
+      <label class="flex items-center justify-between cursor-pointer"><span>Customer reviews <span class="text-muted text-[11px]">· slower, best copy</span></span><input id="f_reviews_text" type="checkbox" class="rounded"/></label>
     </div>
   </div>
 
@@ -373,9 +374,9 @@
   }
 
   /* ---------- fields ---------- */
-  const TOGGLES = ["phone_website","ratings","hours_price","emails","socials","website_phones"];
+  const TOGGLES = ["phone_website","ratings","hours_price","emails","socials","website_phones","reviews_text"];
   const PRESETS = {
-    contact:{phone_website:1,emails:1,website_phones:1}, everything:{phone_website:1,ratings:1,hours_price:1,emails:1,socials:1,website_phones:1}, emails:{emails:1},
+    contact:{phone_website:1,emails:1,website_phones:1}, everything:{phone_website:1,ratings:1,hours_price:1,emails:1,socials:1,website_phones:1,reviews_text:1}, emails:{emails:1},
   };
   function applyPreset(n){ const p=PRESETS[n]||{}; TOGGLES.forEach(k=>$("f_"+k).checked=!!p[k]); }
   $("preset").addEventListener("change", e=>applyPreset(e.target.value)); applyPreset("contact");
@@ -493,8 +494,8 @@
   }
 
   /* ---------- CSV download ---------- */
-  const CSV_G={basics:["name","category","address"],phone_website:["phone","website"],ratings:["rating","reviews"],hours_price:["open_state","hours","price_level","plus_code"],emails:["email","email_status","all_emails"],socials:SOCIALS,website_phones:["website_phones"]};
-  const CSV_ORDER=["name","category","phone","website_phones","website","email","email_status","all_emails",...SOCIALS,"address","rating","reviews","open_state","hours","price_level","plus_code","query","maps_url"];
+  const CSV_G={basics:["name","category","address"],phone_website:["phone","website"],ratings:["rating","reviews"],hours_price:["open_state","hours","price_level","plus_code"],emails:["email","email_status","all_emails"],socials:SOCIALS,website_phones:["website_phones"],reviews_text:["reviews_text"]};
+  const CSV_ORDER=["name","category","phone","website_phones","website","email","email_status","all_emails",...SOCIALS,"address","rating","reviews","reviews_text","open_state","hours","price_level","plus_code","query","maps_url"];
   $("download").addEventListener("click",()=>{
     const want=new Set(); groups().forEach(g=>(CSV_G[g]||[]).forEach(c=>want.add(c))); want.add("query"); want.add("maps_url");
     const cols=CSV_ORDER.filter(c=>want.has(c)); const rows=[cols.join(",")];

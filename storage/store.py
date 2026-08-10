@@ -14,6 +14,7 @@ Plus CSV export of a run's leads (Excel-friendly, contact fields first).
 """
 
 import csv
+import json
 import re
 import sqlite3
 from dataclasses import asdict
@@ -80,8 +81,8 @@ _QUALIFY_COLS = ["quality_score", "service_fit", "fit_reason", "qualify_status"]
 _CSV_COLUMNS = (["name", "category", "phone", "website_phones", "website",
                  "email", "email_status", "all_emails"]
                 + _SOCIAL_COLS
-                + ["address", "rating", "reviews", "open_state", "hours",
-                   "price_level", "plus_code"]
+                + ["address", "rating", "reviews", "reviews_text",
+                   "open_state", "hours", "price_level", "plus_code"]
                 + _QUALIFY_COLS
                 + ["query", "maps_url"])
 
@@ -106,7 +107,8 @@ _MIGRATIONS = ([
      ("fit_reason", "TEXT"), ("qualify_status", "TEXT")]
   + [("vertical", "TEXT")]
   + [("personal_line", "TEXT")]    # legacy (superseded by llm_emails)
-  + [("llm_emails", "TEXT")])      # JSON: LLM-written 3-step sequence + greeting
+  + [("llm_emails", "TEXT")]       # JSON: LLM-written 3-step sequence + greeting
+  + [("reviews_text", "TEXT")])    # JSON: captured Google reviews (opt-in group)
 
 
 # Field groups the operator can switch on/off per run. Maps-side groups are
@@ -119,6 +121,7 @@ FIELD_GROUPS = {
     "emails":         ["email", "email_status", "all_emails"],
     "socials":        _SOCIAL_COLS,
     "website_phones": ["website_phones"],
+    "reviews_text":   ["reviews_text"],
 }
 ENRICH_GROUPS = {"emails", "socials", "website_phones"}   # need a website visit
 
@@ -178,6 +181,8 @@ def save_lead(conn, lead, now: str, vertical=None) -> bool:
     email track this lead gets. Set on insert; also refreshed when a lead is
     re-scraped under a vertical (last write wins)."""
     d = asdict(lead)
+    # reviews_text is a list of dicts on the dataclass; SQLite takes JSON.
+    reviews_json = json.dumps(d.get("reviews_text")) if d.get("reviews_text") else None
     exists = conn.execute(
         "SELECT 1 FROM leads WHERE place_key = ?", (lead.place_key,)
     ).fetchone() is not None
@@ -189,19 +194,24 @@ def save_lead(conn, lead, now: str, vertical=None) -> bool:
         else:
             conn.execute("UPDATE leads SET last_seen = ? WHERE place_key = ?",
                          (now, lead.place_key))
+        # Re-scrapes can newly carry reviews (the group may have been off the
+        # first time). Only overwrite when we actually captured some.
+        if reviews_json:
+            conn.execute("UPDATE leads SET reviews_text = ? WHERE place_key = ?",
+                         (reviews_json, lead.place_key))
         log.debug("dedupe: %r already stored, refreshed last_seen", lead.name)
     else:
         conn.execute(
             """INSERT INTO leads (place_key, name, category, address, phone,
                    website, rating, reviews, maps_url, query, vertical,
-                   open_state, hours, price_level, plus_code,
+                   open_state, hours, price_level, plus_code, reviews_text,
                    status, first_seen, last_seen)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                        'extracted', ?, ?)""",
             (d["place_key"], d["name"], d["category"], d["address"], d["phone"],
              d["website"], d["rating"], d["reviews"], d["maps_url"], d["query"],
              vertical, d["open_state"], d["hours"], d["price_level"],
-             d["plus_code"], now, now),
+             d["plus_code"], reviews_json, now, now),
         )
     conn.commit()
     return not exists
@@ -213,8 +223,8 @@ def leads_needing_email(conn, query=None, limit=None) -> list:
     """Leads that have a website but haven't been through enrichment yet.
     Returns (place_key, name, website) tuples. This IS the resume list —
     already-enriched leads are excluded, so a re-run only does what's left."""
-    sql = ("SELECT place_key, name, website, category, query, rating, reviews "
-           "FROM leads WHERE website IS NOT NULL AND website != '' "
+    sql = ("SELECT place_key, name, website, category, query, rating, reviews, "
+           "reviews_text FROM leads WHERE website IS NOT NULL AND website != '' "
            "AND status = 'extracted'")
     params = []
     if query:
@@ -259,7 +269,8 @@ def leads_missing_emails_copy(conn) -> list:
     yet — the backfill worklist once an API key is available. Returns
     (place_key, name, category, query, rating, reviews, website) dicts."""
     cur = conn.execute(
-        """SELECT place_key, name, category, query, rating, reviews, website
+        """SELECT place_key, name, category, query, rating, reviews, website,
+                  reviews_text
            FROM leads
            WHERE email IS NOT NULL AND email != '' AND email_status = 'valid'
              AND (llm_emails IS NULL OR llm_emails = '')

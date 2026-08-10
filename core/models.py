@@ -7,7 +7,7 @@ them without importing each other (avoids tangled cross-imports).
   Lead    — a fully extracted business, ready for the spreadsheet.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -35,3 +35,7 @@ class Lead:
     hours: str | None = None         # weekly summary, e.g. "Mon 8 AM-5 PM; ..."
     price_level: str | None = None   # "$$", "Moderate", "$10-20", ...
     plus_code: str | None = None     # e.g. "F6XG+W5"
+    # Review capture (opt-in 'reviews_text' group). A list of dicts:
+    # {stars, text, when, owner_replied}. Empty list = the group was off or
+    # the panel wouldn't load; never None, so callers can iterate blindly.
+    reviews_text: list = field(default_factory=list)

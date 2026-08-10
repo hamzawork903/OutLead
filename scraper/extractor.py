@@ -18,6 +18,7 @@ from core.browser import save_failure_screenshot
 from core.logbook import get_logger
 from core.models import Lead
 from core.reliability import BlockDetected, TRANSIENT, guard_block, retry
+from scraper.reviews import collect_reviews
 
 log = get_logger(__name__)
 
@@ -109,13 +110,17 @@ def _clean_ws(s: str | None) -> str | None:
     return s.replace(" ", " ").replace("\xa0", " ").strip() or None
 
 
-def extract_lead(page, listing, query: str) -> Lead | None:
+def extract_lead(page, listing, query: str, want_reviews: bool = False) -> Lead | None:
     """
     Navigate to a listing and return a Lead.
 
     Returns None if the listing won't open (already retried) — the run skips it
     and continues. Raises BlockDetected if Google challenges us, so the caller
     can stop the whole run cleanly (progress stays saved).
+
+    `want_reviews` (the 'reviews_text' field group) adds a tab click and a
+    scroll to capture review text. It's opt-in because it roughly doubles the
+    time on each listing; a failure there never costs us the lead.
     """
     place_key = listing.place_key
 
@@ -156,6 +161,13 @@ def extract_lead(page, listing, query: str) -> Lead | None:
         price_level=_clean_ws(raw.get("price")),
         plus_code=_clean_plus_code(raw.get("plus_code")),
     )
+
+    # Reviews last: everything above is already captured, so even a total
+    # failure in the reviews panel still yields a complete lead.
+    if want_reviews:
+        lead.reviews_text = collect_reviews(page, lead.name or "")
+        if lead.reviews_text:
+            log.info("  %s: +%d review(s) captured", lead.name, len(lead.reviews_text))
 
     if not lead.name:
         log.warning("listing %s had no name — data may be incomplete", place_key)

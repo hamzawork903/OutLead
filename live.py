@@ -163,6 +163,7 @@ def main() -> int:
             outcome = scrape_query(page, conn, args.query, run_leads,
                                    limit=args.limit, filters=filters,
                                    vertical=args.vertical,
+                                   want_reviews="reviews_text" in groups,
                                    columns=columns, on_lead=on_lead)
         return 1 if outcome == "no-results" else 0
 

@@ -94,7 +94,7 @@ def lead_detail(conn, place_key) -> dict | None:
     cur = conn.execute(
         """SELECT l.place_key, l.name, l.email, l.email_status, l.website,
                   l.category, l.rating, l.reviews, l.quality_score, l.query,
-                  l.vertical, l.llm_emails,
+                  l.vertical, l.llm_emails, l.reviews_text,
                   s.current_step, s.status, s.stop_reason, s.next_send_at
            FROM leads l LEFT JOIN outreach_sequences s
                 ON s.place_key = l.place_key

@@ -88,7 +88,8 @@ def run_enrichment(conn, query=None, limit=None, workers=None) -> dict:
                 place_key, name, website = row[0], row[1], row[2]
                 brief = {"place_key": place_key, "name": name,
                          "category": row[3], "query": row[4],
-                         "rating": row[5], "reviews": row[6]}
+                         "rating": row[5], "reviews": row[6],
+                         "reviews_text": row[7] if len(row) > 7 else None}
                 futures[pool.submit(_harvest_and_compose, brief, website)] = \
                     (place_key, name, website)
             for future in as_completed(futures):

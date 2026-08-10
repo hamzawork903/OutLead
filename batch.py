@@ -140,7 +140,8 @@ def main() -> int:
                     outcome = scrape_query(page, conn, query, run_leads,
                                            limit=args.limit, filters=filters,
                                            columns=columns,
-                                           vertical=args.vertical)
+                                           vertical=args.vertical,
+                                           want_reviews="reviews_text" in groups)
                 except BlockDetected as block:
                     outcome = f"blocked:{block.kind}"
                     log.warning("  Google challenged us (%s) — stopping the whole "

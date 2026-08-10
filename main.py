@@ -75,7 +75,8 @@ def rate_gate(conn) -> str | None:
 
 
 def _extract_all(page, conn, listings, query, run_leads, writer,
-                 crash_after=None, filters=None, on_lead=None, vertical=None):
+                 crash_after=None, filters=None, on_lead=None, vertical=None,
+                 want_reviews=False):
     """Open each listing, extract, apply filters, store with dedupe, mark the
     queue, and STREAM each kept lead to the CSV as it's found.
 
@@ -101,7 +102,7 @@ def _extract_all(page, conn, listings, query, run_leads, writer,
             raise RuntimeError(
                 f"simulated crash after {crash_after} listings (--crash-after)")
         events.emit(events.CURSOR, {"name": listing.name, "i": i, "total": total})
-        lead = extract_lead(page, listing, query)
+        lead = extract_lead(page, listing, query, want_reviews=want_reviews)
         if lead is None:
             store.mark_queue(conn, query, listing.place_key, "failed")
             continue
@@ -117,6 +118,10 @@ def _extract_all(page, conn, listings, query, run_leads, writer,
             new_count += 1
         store.mark_queue(conn, query, listing.place_key, "done")
         row = asdict(lead)
+        # CSV/UI want a flat string, not a list of dicts.
+        row["reviews_text"] = " | ".join(
+            f'{r.get("stars") or "?"}★ {r.get("text", "")}'
+            for r in (lead.reviews_text or []))
         writer.write(row)            # live: this row hits the spreadsheet now
         events.emit(events.LEAD, row)  # live: this row hits the UI table now
         run_leads.append(lead)
@@ -133,7 +138,7 @@ def _extract_all(page, conn, listings, query, run_leads, writer,
 
 def scrape_query(page, conn, query, run_leads, *, limit=None, fresh=False,
                  crash_after=None, filters=None, columns=None, on_lead=None,
-                 vertical=None) -> str:
+                 vertical=None, want_reviews=False) -> str:
     """Scrape one query on an already-open Maps page. Appends Leads to the
     caller-owned `run_leads` and streams them to a live CSV. Returns an outcome
     string ('ok' | 'single-place' | 'no-results'). May raise BlockDetected /
@@ -176,7 +181,7 @@ def scrape_query(page, conn, query, run_leads, *, limit=None, fresh=False,
     try:
         new_count = _extract_all(page, conn, listings, query, run_leads, writer,
                                  crash_after, filters, on_lead=on_lead,
-                                 vertical=vertical)
+                                 vertical=vertical, want_reviews=want_reviews)
     finally:
         writer.close()   # always leave a valid CSV, even on a crash
     already = len(run_leads) - new_count
@@ -315,7 +320,8 @@ def main() -> int:
                                        limit=args.limit, fresh=args.fresh,
                                        crash_after=args.crash_after,
                                        filters=filters, columns=columns,
-                                       vertical=args.vertical)
+                                       vertical=args.vertical,
+                                       want_reviews="reviews_text" in groups)
             verdict = 1 if outcome == "no-results" else 0
 
             if enrich_after and outcome == "ok":

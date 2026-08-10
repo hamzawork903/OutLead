@@ -17,6 +17,14 @@ export default function LeadDrawer({ placeKey, onClose, onChanged }) {
     getLead(placeKey).then(setLead).catch((e) => setError(e.message))
   }, [placeKey])
 
+  // reviews_text is stored as a JSON string; tolerate both shapes.
+  const reviews = (() => {
+    const raw = lead?.reviews_text
+    if (!raw) return []
+    if (Array.isArray(raw)) return raw
+    try { return JSON.parse(raw) || [] } catch { return [] }
+  })()
+
   const act = async (fn, confirmText) => {
     if (!window.confirm(confirmText)) return
     setBusy(true)
@@ -74,7 +82,7 @@ export default function LeadDrawer({ placeKey, onClose, onChanged }) {
             </div>
 
             <div className="flex gap-1 p-1 rounded-xl bg-black/25 border border-white/10 mb-4 w-fit">
-              {['emails', 'history'].map((t) => (
+              {['emails', 'reviews', 'history'].map((t) => (
                 <button key={t} onClick={() => setTab(t)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${
                     tab === t ? 'bg-brand text-white' : 'text-muted hover:text-ink'}`}>
@@ -103,6 +111,37 @@ export default function LeadDrawer({ placeKey, onClose, onChanged }) {
                 <div className="text-sm text-muted">
                   No emails generated yet — this lead is skipped by the sender
                   until the AI writes its sequence.
+                </div>
+              )
+            )}
+
+            {tab === 'reviews' && (
+              reviews.length ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted">
+                    What the AI writes from — captured from Google Maps.
+                  </p>
+                  {reviews.map((r, i) => (
+                    <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1 text-xs">
+                        <span className="text-warn">
+                          {r.stars ? '★'.repeat(Math.round(r.stars)) : '—'}
+                        </span>
+                        {r.when && <span className="text-muted">{r.when}</span>}
+                        {r.owner_replied && (
+                          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-good/15 text-good">
+                            owner replied
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-ink/80 leading-relaxed">{r.text}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-muted">
+                  No reviews captured. Turn on “Customer reviews” in the scraper's
+                  field list before scraping to collect them.
                 </div>
               )
             )}

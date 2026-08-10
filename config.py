@@ -97,6 +97,21 @@ SELECTORS = {
     ],
 }
 
+# ------------------------------------------------------- review capture ----
+# Reviews are the best raw material for outreach copy: what customers SAY
+# about a business beats what the business says about itself. They're also
+# the most expensive field we collect — they sit behind a tab click and a
+# lazy-loading panel — so this only runs when the 'reviews_text' field group
+# is switched on, and never blocks a lead from being saved if it fails.
+REVIEWS = {
+    "max_per_lead": 8,          # cap; more reviews = more scrolling = more risk
+    "scroll_rounds": 3,         # the lazy panel loads ~8-10 per round
+    "max_chars_each": 400,      # one rambling review can't eat the budget
+    "max_chars_total": 1500,    # ceiling on what reaches the LLM prompt
+    "panel_timeout_ms": 8000,   # give up on the panel rather than hang the run
+    "expand_more": True,        # click "More" for untruncated review text
+}
+
 # ---------------------------------------------------------- reliability ----
 # Retry only TRANSIENT failures (slow loads); backoff grows 2s -> 4s -> 8s
 # with jitter so we never hammer a struggling page. Blocks are never retried.
@@ -148,6 +163,10 @@ QUALIFY = {
         "reviews_20": 10,       # reviews >= reviews_established
         "reviews_100": 5,       # extra, reviews >= reviews_popular
         "open_now": 5,          # open_state == "Open"
+        # From captured reviews (opt-in 'reviews_text' group; 0 when absent):
+        "review_pain": 15,      # a customer complained they couldn't get through
+                                # — the prospect's own market proving the pain
+        "owner_engaged": 5,     # the owner replies to reviews = reachable, cares
     },
     "rating_good": 4.0,
     "rating_great": 4.5,
