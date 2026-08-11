@@ -104,10 +104,18 @@ SELECTORS = {
 # lazy-loading panel — so this only runs when the 'reviews_text' field group
 # is switched on, and never blocks a lead from being saved if it fails.
 REVIEWS = {
-    "max_per_lead": 8,          # cap; more reviews = more scrolling = more risk
+    "max_per_lead": 12,         # cap; more reviews = more scrolling = more risk
+    # The mix is the point. All praise and there's no weakness to pitch; all
+    # complaints and the email reads as an accusation. We open with something
+    # true and good, then name the gap.
+    "negative_target": 6,       # reviews at or below negative_max_stars
+    "positive_target": 5,       # reviews at or above positive_min_stars
+    "negative_max_stars": 3,    # Google reviews are whole stars: 1, 2, 3
+    "positive_min_stars": 4,
     "scroll_rounds": 3,         # the lazy panel loads ~8-10 per round
-    "max_chars_each": 400,      # one rambling review can't eat the budget
-    "max_chars_total": 1500,    # ceiling on what reaches the LLM prompt
+    # A safety bound on hostile input, NOT formatting. Quotes are stored whole
+    # so they can be quoted; the token budget lives at the prompt (LLM below).
+    "max_chars_each": 2000,
     "panel_timeout_ms": 8000,   # give up on the panel rather than hang the run
     "tab_attempts": 4,          # the tab strip hydrates after the h1 does
     "tab_wait_ms": 600,         # pause between those attempts
@@ -119,7 +127,12 @@ REVIEWS = {
     # are the buying signal, so fetch a few of the worst on purpose.
     "include_lowest_rated": True,
     "lowest_rated_max": 3,      # kept first, so the char budget can't drop them
-    "sort_wait_ms": 1200,       # menu open / list re-sort
+    "sort_wait_ms": 1200,       # list re-sort after picking an option
+    "menu_timeout_ms": 2500,    # wait for the sort menu to render
+    "sort_attempts": 2,         # the first click silently misses sometimes
+    "sort_verify_max_stars": 3,  # top of a lowest-first list must be <= this
+    "sort_verify_timeout_ms": 5000,  # how long to wait for the re-sort to land
+    "sort_poll_ms": 400,        # how often to check while waiting
 }
 
 # ---------------------------------------------------------- reliability ----
@@ -269,6 +282,9 @@ LLM = {
     "timeout_s": 45.0,             # full-sequence generation, not a one-liner
     "max_site_chars": 3500,        # how much website text the model sees
     "min_site_chars": 200,         # thinner than this -> model leans on trade+city
+    # Reviews are stored in full; this is how much of them the model pays for.
+    "review_count": 6,             # complaints come first, so they survive this
+    "review_chars_total": 1800,
     # HARD spending cap for the test phase: once total estimated spend
     # (tracked per-call from the API's own token counts, persisted in
     # logs/llm_spend.json) reaches this, the LLM stops with a loud error.

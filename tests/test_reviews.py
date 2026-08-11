@@ -31,16 +31,65 @@ check("owner reply flag kept", out[0]["owner_replied"] is True)
 check("control characters stripped",
       "\x00" not in out[1]["text"] and "\x07" not in out[1]["text"])
 long_one = [{"stars": "5 stars", "text": "x" * 5000, "when": None, "owner_replied": False}]
-check("per-review length capped",
+check("pathological review bounded",
       len(_clean(long_one)[0]["text"]) == REVIEWS["max_chars_each"])
-many = [{"stars": "5 stars", "text": "y" * 400, "when": None, "owner_replied": False}] * 20
-check("total budget enforced",
-      sum(len(r["text"]) for r in _clean(many)) <= REVIEWS["max_chars_total"])
 check("empty input is safe", _clean([]) == [])
 
+# Quotes are stored WHOLE. A 400-char cap once cut them mid-word ("gave us a
+# very w"), which makes a quote useless to an email. The token budget belongs
+# at the prompt, not in the database.
+real_length = 900
+verbatim = [{"stars": "1 star", "when": None, "owner_replied": False,
+             "text": "They never answered. " * (real_length // 21)}]
+kept = _clean(verbatim)[0]["text"]
+check("long review stored verbatim, not chopped at 400",
+      len(kept) > 400 and kept.endswith("answered."), f"len={len(kept)}")
+many = [{"stars": "5 stars", "text": "y" * 400, "when": None, "owner_replied": False}] * 20
+check("no total budget applied at capture", len(_clean(many)) == 20)
+
+# ---------- dates: "2 months ago" has to become a real date ----------
+from datetime import date
+from core.dates import parse_relative, months_since, is_recent
+
+TODAY = date(2026, 8, 11)
+check("months parsed", parse_relative("3 months ago", TODAY) == date(2026, 5, 13))
+check("'a week ago' means one", parse_relative("a week ago", TODAY) == date(2026, 8, 4))
+check("days parsed", parse_relative("2 days ago", TODAY) == date(2026, 8, 9))
+check("years parsed", parse_relative("a year ago", TODAY) == date(2025, 8, 11))
+check("sub-day rounds to today", parse_relative("an hour ago", TODAY) == TODAY)
+check("yesterday handled", parse_relative("yesterday", TODAY) == date(2026, 8, 10))
+check("nonsense returns None", parse_relative("last tuesday", TODAY) is None)
+check("empty returns None", parse_relative("", TODAY) is None)
+check("months_since counts back", months_since(date(2026, 5, 13), TODAY) == 3)
+check("recent evidence passes", is_recent(date(2026, 5, 13), 12, TODAY))
+check("stale evidence fails", not is_recent(date(2024, 1, 1), 12, TODAY))
+check("unknown date is never 'recent'", not is_recent(None, 12, TODAY))
+dated = _clean([{"stars": "1 star", "text": "Nobody ever answered the phone here.",
+                 "when": "2 months ago", "owner_replied": False}])
+check("capture stamps an absolute date", dated[0]["date"] is not None)
+check("...and keeps the original string", dated[0]["when"] == "2 months ago")
+
+# ---------- buckets: complaints AND praise, by star rating ----------
+from scraper.reviews import _take
+
+pool = _clean([{"stars": f"{s} stars", "when": None, "owner_replied": False,
+                "text": f"A review rated {s} stars, long enough to survive."}
+               for s in (5, 1, 4, 2, 5, 3, 5, 1)])
+negatives = _take(pool, lambda r: r["stars"] <= 3, 6)
+positives = _take(pool, lambda r: r["stars"] >= 4, 5)
+check("negatives bucket picks 1-3 star only",
+      all(r["stars"] <= 3 for r in negatives) and len(negatives) == 4, str(negatives))
+check("positives bucket picks 4-5 star only",
+      all(r["stars"] >= 4 for r in positives) and len(positives) == 4)
+check("bucket honours its limit", len(_take(pool, lambda r: True, 2)) == 2)
+check("shortfall returns what exists, not an error",
+      len(_take(pool, lambda r: r["stars"] == 2, 6)) == 1)
+check("empty pool is safe", _take([], lambda r: True, 5) == [])
+
 # ---------- merge policy: complaints must outrank praise ----------
-# The char budget truncates the tail, so a low-rated review passed in first
-# has to survive a flood of five-star praise or the pain signal is lost.
+# Order is the whole guarantee. The prompt budget trims the tail of this list,
+# so complaints have to sit at the head or a flood of five-star praise pushes
+# the evidence out of the email.
 complaint = {"stars": "1 star", "owner_replied": False, "when": None,
              "text": "Called four times about a filling and nobody ever answered."}
 praise = [{"stars": "5 stars", "owner_replied": False, "when": None,

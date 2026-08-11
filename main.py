@@ -120,6 +120,7 @@ def _extract_all(page, conn, listings, query, run_leads, writer,
         row = asdict(lead)
         # CSV/UI want a flat string, not a list of dicts.
         row["reviews_text"] = " | ".join(
+            f'{r.get("date") or r.get("when") or "?"} · '
             f'{r.get("stars") or "?"}★ {r.get("text", "")}'
             for r in (lead.reviews_text or []))
         writer.write(row)            # live: this row hits the spreadsheet now

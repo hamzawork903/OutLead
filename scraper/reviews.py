@@ -25,12 +25,12 @@ quiet [] once hid a bug that lost reviews on 41% of leads.
 import re
 
 from config import REVIEWS, TIMEOUTS_MS
+from core.dates import parse_relative
 from core.logbook import get_logger
 from scraper import review_dom
+from scraper.review_dom import STARS_RE
 
 log = get_logger(__name__)
-
-_STARS_RE = re.compile(r"([0-9](?:\.[0-9])?)\s*star", re.IGNORECASE)
 
 
 def _readable(raw_reviews: list) -> int:
@@ -53,10 +53,15 @@ def _merge(first: list, second: list) -> list:
 
 
 def _clean(raw_reviews: list) -> list:
-    """Turn raw page strings into tidy records, dropping junk. Review text is
-    user-generated content — the most hostile input in the pipeline — so it's
-    length-capped and stripped of control characters here, at the boundary."""
-    cleaned, total = [], 0
+    """Turn raw page strings into tidy records, dropping junk.
+
+    Review text is user-generated content — the most hostile input in the
+    pipeline — so control characters are stripped here, at the boundary, and a
+    generous ceiling guards against a pathological entry. That ceiling is a
+    safety bound, NOT formatting: quotes are stored whole, because the email
+    quotes them and a sentence ending in "gave us a very w" is worthless. The
+    budget that keeps token costs down lives at the prompt instead."""
+    cleaned = []
     for r in raw_reviews:
         text = (r.get("text") or "").strip()
         text = re.sub(r"[\x00-\x1f\x7f]", " ", text)      # control chars
@@ -64,18 +69,29 @@ def _clean(raw_reviews: list) -> list:
         if len(text) < 15:                                 # "Great!" helps nobody
             continue
         text = text[:REVIEWS["max_chars_each"]]
-        if total + len(text) > REVIEWS["max_chars_total"]:
-            break
-        total += len(text)
 
-        stars_match = _STARS_RE.search(r.get("stars") or "")
+        stars_match = STARS_RE.search(r.get("stars") or "")
+        when = (r.get("when") or "").strip() or None
+        posted = parse_relative(when)
         cleaned.append({
             "stars": float(stars_match.group(1)) if stars_match else None,
             "text": text,
-            "when": (r.get("when") or "").strip() or None,
+            "when": when,
+            "date": posted.isoformat() if posted else None,
             "owner_replied": bool(r.get("owner_replied")),
         })
     return cleaned
+
+
+def _take(reviews: list, keep, limit: int) -> list:
+    """The first `limit` reviews satisfying `keep`, in the order given."""
+    picked = []
+    for review in reviews:
+        if len(picked) >= limit:
+            break
+        if keep(review):
+            picked.append(review)
+    return picked
 
 
 def _open_panel(page, business_name: str) -> bool:
@@ -110,22 +126,37 @@ def _best_read(page) -> list:
     return best
 
 
-def _worst_reviews(page) -> list:
-    """The lowest-rated reviews, where the complaints live. [] if unavailable."""
+def _complaints(page, business_name: str) -> list:
+    """Reviews rated at or below REVIEWS['negative_max_stars'].
+
+    Worth the extra sort: a business's complaints are the only part of its
+    reviews you can build a pitch on. Praise proves they're good at the work,
+    which is necessary but sells nothing."""
     if not REVIEWS["include_lowest_rated"]:
         return []
     if not review_dom.sort_lowest(page):
+        # Indistinguishable from here: a business with genuinely no reviews
+        # under 4 stars looks exactly like a sort that didn't land. The lead is
+        # unpitchable either way, so don't claim a cause we can't prove.
+        log.info("  %s: no reviews under %d stars available",
+                 business_name, REVIEWS["positive_min_stars"])
         return []
     if REVIEWS["expand_more"]:
         review_dom.expand_more(page)
-    raw = review_dom.read_cards(page, REVIEWS["max_per_lead"])
-    return raw[:REVIEWS["lowest_rated_max"]]
+    found = _clean(review_dom.read_cards(page, REVIEWS["max_per_lead"]))
+    return _take(found,
+                 lambda r: r["stars"] and r["stars"] <= REVIEWS["negative_max_stars"],
+                 REVIEWS["negative_target"])
 
 
 def collect_reviews(page, business_name: str = "") -> list:
-    """Open the reviews tab on an already-loaded listing and return up to
-    REVIEWS['max_per_lead'] cleaned reviews, complaints first. Returns [] on
-    any failure — never raises, never costs the caller its lead."""
+    """Open the reviews tab on an already-loaded listing and return cleaned
+    reviews — complaints first, then praise. Returns [] on any failure: never
+    raises, never costs the caller its lead.
+
+    Both halves are deliberate. The complaints are what you pitch against; the
+    praise is what stops the email reading like an accusation, and it has to be
+    specific enough to prove somebody actually looked."""
     if not _open_panel(page, business_name):
         return []
 
@@ -140,9 +171,29 @@ def collect_reviews(page, business_name: str = "") -> list:
                     "the reviews DOM has changed", business_name, len(relevant))
         return []
 
-    reviews = _clean(_merge(_worst_reviews(page), relevant))
+    praise = _take(_clean(relevant),
+                   lambda r: r["stars"] and r["stars"] >= REVIEWS["positive_min_stars"],
+                   REVIEWS["positive_target"])
+    complaints = _complaints(page, business_name)
+
+    reviews = _merge(complaints, praise)[:REVIEWS["max_per_lead"]]
+    _log_capture(business_name, reviews, complaints, praise)
+    return reviews
+
+
+def _log_capture(business_name, reviews, complaints, praise) -> None:
+    """Say what we got and what we're short of. A lead with no complaints can't
+    be pitched, and that has to be visible rather than looking like success."""
     truncated = sum(1 for r in reviews if r["text"].rstrip().endswith("…"))
     if truncated:
         log.warning("%s: %d/%d review(s) still truncated — 'More' didn't expand",
                     business_name, truncated, len(reviews))
-    return reviews
+    if not complaints:
+        log.info("  %s: no complaints found — nothing to pitch against",
+                 business_name)
+    elif len(complaints) < REVIEWS["negative_target"]:
+        log.info("  %s: only %d/%d complaint(s) available", business_name,
+                 len(complaints), REVIEWS["negative_target"])
+    if len(praise) < REVIEWS["positive_target"]:
+        log.debug("%s: %d/%d positive review(s)", business_name, len(praise),
+                  REVIEWS["positive_target"])

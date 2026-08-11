@@ -179,9 +179,10 @@ def validate(raw: str) -> dict | None:
 def _review_lines(lead: dict) -> list:
     """Customer reviews as prompt lines. This is the strongest personalisation
     material we have — what customers SAY beats what the business claims about
-    itself — but it's also user-generated text from strangers, so it's already
-    length-capped and control-stripped at capture (scraper/reviews.py) and the
-    prompt forbids quoting reviewer names."""
+    itself — but it's also user-generated text from strangers, so it's
+    control-stripped at capture (scraper/reviews.py) and the prompt forbids
+    quoting reviewer names. Reviews arrive complaints-first, so the budget
+    below trims praise rather than the evidence."""
     raw = lead.get("reviews_text")
     if isinstance(raw, str):
         try:
@@ -191,11 +192,11 @@ def _review_lines(lead: dict) -> list:
     if not raw:
         return []
     lines, used = [], 0
-    for r in raw:
+    for r in raw[:LLM["review_count"]]:
         text = (r.get("text") or "").strip()
         if not text:
             continue
-        if used + len(text) > LLM["max_site_chars"]:
+        if used + len(text) > LLM["review_chars_total"]:
             break
         used += len(text)
         stars = r.get("stars")
