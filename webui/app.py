@@ -135,8 +135,16 @@ def start():
         return jsonify({"error": "Enter a business type and location, "
                                  "or paste a Google Maps URL."}), 400
 
+    vertical = (data.get("serviceFit") or "").strip()
     if url:
         cmd = [sys.executable, "-u", "main.py", "--url", url]
+    elif vertical:
+        # A vertical means "search everything in its profile". One phrase against
+        # one city returns whatever Google has for it — 36 for private dentists
+        # in Manchester — so asking for 500 and getting 36 isn't a cap, it's a
+        # single search. batch.py walks the terms x cities matrix and stops at
+        # the target.
+        cmd = [sys.executable, "-u", "batch.py", "--vertical", vertical]
     else:
         # main.py takes the query as ONE positional string — nothing splits on
         # commas anywhere. (batch.py comma-splits --niches/--cities AND --terms,
@@ -153,10 +161,49 @@ def start():
     fields = data.get("fields") or []
     if fields:
         cmd += ["--fields", ",".join(fields)]   # also decides enrichment
-    if data.get("serviceFit"):
-        cmd += ["--vertical", str(data["serviceFit"])]   # email routing key
+    if vertical and "--vertical" not in cmd:
+        cmd += ["--vertical", vertical]      # tags leads for the gate + routing
 
     return _run_subprocess(cmd, " ".join(cmd[2:]), kind="scrape")
+
+
+@app.route("/api/verticals")
+def verticals_list():
+    """The vertical profiles, for the scrape page's dropdown. Picking one fills
+    in its search terms and cities so the operator doesn't retype what's
+    already written down in profiles/verticals.json."""
+    from qualifier import profiles
+    out = []
+    for name in profiles.names():
+        profile = profiles.load(name)
+        if profile:
+            out.append({"name": name, "slug": profile["slug"],
+                        "tier": profile["tier"],
+                        "terms": profile.get("search_terms") or [],
+                        "cities": profile.get("cities") or []})
+    return jsonify(out)
+
+
+@app.route("/api/gate/start", methods=["POST"])
+def gate_start():
+    """Run the gate over already-scraped leads of one vertical. Reads the
+    database and writes the spreadsheet; it can never send an email."""
+    data = request.get_json(force=True, silent=True) or {}
+    vertical = (data.get("vertical") or "").strip()
+    if not vertical:
+        return jsonify({"error": "Pick a business vertical first — the gate "
+                                 "needs to know which profile to judge against."}), 400
+    # Refuse an unknown profile here rather than launching a subprocess that
+    # fails somewhere in a log. A refusal the operator can't see reads as
+    # "nothing happened".
+    from qualifier import profiles
+    if profiles.load(vertical) is None:
+        return jsonify({"error": f"No profile called '{vertical}'. Add it to "
+                                 f"profiles/verticals.json first."}), 400
+    cmd = [sys.executable, "-u", "rungate.py", "--vertical", vertical]
+    if data.get("noSheets"):
+        cmd += ["--no-sheets"]
+    return _run_subprocess(cmd, f"rungate.py --vertical {vertical}", kind="gate")
 
 
 @app.route("/api/qualify/start", methods=["POST"])

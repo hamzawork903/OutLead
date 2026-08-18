@@ -25,7 +25,9 @@ quiet [] once hid a bug that lost reviews on 41% of leads.
 import re
 
 from config import REVIEWS, TIMEOUTS_MS
-from core.dates import parse_relative
+from datetime import date
+
+from core.dates import is_recent, parse_relative
 from core.logbook import get_logger
 from scraper import review_dom
 from scraper.review_dom import STARS_RE
@@ -149,6 +151,33 @@ def _complaints(page, business_name: str) -> list:
                  REVIEWS["negative_target"])
 
 
+def _recent(page, business_name: str) -> list:
+    """Reviews sorted newest-first, keeping only those inside the capture
+    window.
+
+    This exists because the lowest-rating pass finds a business's worst reviews
+    EVER, and those accumulate over years — on a real Manchester run six
+    businesses had complaints and not one was recent enough for the gate to
+    quote. Maps offers no date filter, only this sort, so "recent" means sort
+    newest and stop at the cutoff. Complaints found here are fresh by
+    construction."""
+    if not REVIEWS["include_newest"]:
+        return []
+    if not review_dom.sort_newest(page):
+        log.debug("%s: couldn't sort to newest", business_name)
+        return []
+    if REVIEWS["expand_more"]:
+        review_dom.expand_more(page)
+    fresh = []
+    for review in _clean(review_dom.read_cards(page, REVIEWS["max_per_lead"])):
+        posted = review.get("date")
+        if posted and not is_recent(date.fromisoformat(posted),
+                                    REVIEWS["max_age_months"]):
+            break                   # newest-first: everything after is older
+        fresh.append(review)
+    return fresh
+
+
 def collect_reviews(page, business_name: str = "") -> list:
     """Open the reviews tab on an already-loaded listing and return cleaned
     reviews — complaints first, then praise. Returns [] on any failure: never
@@ -174,14 +203,21 @@ def collect_reviews(page, business_name: str = "") -> list:
     praise = _take(_clean(relevant),
                    lambda r: r["stars"] and r["stars"] >= REVIEWS["positive_min_stars"],
                    REVIEWS["positive_target"])
-    complaints = _complaints(page, business_name)
+    worst = _complaints(page, business_name)
+    fresh = _recent(page, business_name)
+    fresh_complaints = _take(
+        fresh, lambda r: r["stars"] and r["stars"] <= REVIEWS["negative_max_stars"],
+        REVIEWS["negative_target"])
 
+    # Recent complaints lead: they're the only ones the gate will quote, and
+    # the merge order decides what survives the prompt budget downstream.
+    complaints = _merge(fresh_complaints, worst)
     reviews = _merge(complaints, praise)[:REVIEWS["max_per_lead"]]
-    _log_capture(business_name, reviews, complaints, praise)
+    _log_capture(business_name, reviews, complaints, praise, len(fresh_complaints))
     return reviews
 
 
-def _log_capture(business_name, reviews, complaints, praise) -> None:
+def _log_capture(business_name, reviews, complaints, praise, fresh=0) -> None:
     """Say what we got and what we're short of. A lead with no complaints can't
     be pitched, and that has to be visible rather than looking like success."""
     truncated = sum(1 for r in reviews if r["text"].rstrip().endswith("…"))
@@ -191,6 +227,10 @@ def _log_capture(business_name, reviews, complaints, praise) -> None:
     if not complaints:
         log.info("  %s: no complaints found — nothing to pitch against",
                  business_name)
+    elif not fresh:
+        log.info("  %s: %d complaint(s), none inside the last %d months — the "
+                 "gate can't quote stale evidence", business_name,
+                 len(complaints), REVIEWS["max_age_months"])
     elif len(complaints) < REVIEWS["negative_target"]:
         log.info("  %s: only %d/%d complaint(s) available", business_name,
                  len(complaints), REVIEWS["negative_target"])

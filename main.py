@@ -30,7 +30,7 @@ from core.logbook import get_logger, setup_logging
 from core.models import Listing
 from core.reliability import BlockDetected
 from scraper.collector import collect_listings
-from scraper.extractor import extract_lead, lead_passes
+from scraper.extractor import NoConnection, extract_lead, lead_passes
 from scraper.search import run_search
 from storage import store
 
@@ -102,7 +102,19 @@ def _extract_all(page, conn, listings, query, run_leads, writer,
             raise RuntimeError(
                 f"simulated crash after {crash_after} listings (--crash-after)")
         events.emit(events.CURSOR, {"name": listing.name, "i": i, "total": total})
-        lead = extract_lead(page, listing, query, want_reviews=want_reviews)
+        try:
+            lead = extract_lead(page, listing, query, want_reviews=want_reviews)
+        except NoConnection as err:
+            # Maps served its offline page. Carrying on would grind through the
+            # rest of the queue collecting error pages and finish reporting
+            # success — which is exactly what happened once: 42 rows named
+            # "Google Maps can't reach the internet", outcome=ok.
+            store.mark_queue(conn, query, listing.place_key, "pending")
+            log.error("\n  STOPPING: Google Maps is unreachable (%s).\n"
+                      "  %d lead(s) saved so far. Check your internet and "
+                      "re-run the same query — the queue resumes where it "
+                      "stopped.", err, len(run_leads))
+            raise
         if lead is None:
             store.mark_queue(conn, query, listing.place_key, "failed")
             continue

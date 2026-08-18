@@ -170,3 +170,17 @@ SCROLL_TOP_JS = r"""() => {
         el = el.parentElement;
     }
 }"""
+
+# Sorting by Newest is how we get RECENT complaints. Lowest-rating returns a
+# business's worst reviews ever, and those pile up over years — on a real
+# Manchester run, six businesses had complaints and not one inside the gate's
+# window. Maps has no date filter, only this sort, so recency is "sort newest,
+# then keep what's inside the cutoff".
+PICK_NEWEST_JS = r"""() => {
+    const item = [...document.querySelectorAll(
+        '[role="menuitemradio"], [role="menuitem"], [role="option"]')].find(
+        el => /^newest/i.test((el.textContent || '').trim()));
+    if (!item) return false;
+    item.click();
+    return true;
+}"""

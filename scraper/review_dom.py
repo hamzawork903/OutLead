@@ -15,8 +15,9 @@ import re
 from config import REVIEWS
 from core.logbook import get_logger
 from scraper.review_js import (EXPAND_JS, EXPAND_TRUNCATED_JS, OPEN_SORT_JS,
-                               PICK_LOWEST_JS, REVIEWS_JS, SCROLL_JS,
-                               SCROLL_TOP_JS, TAB_SELECTORS, TOP_STARS_JS)
+                               PICK_LOWEST_JS, PICK_NEWEST_JS, REVIEWS_JS,
+                               SCROLL_JS, SCROLL_TOP_JS, TAB_SELECTORS,
+                               TOP_STARS_JS)
 
 log = get_logger(__name__)
 
@@ -98,23 +99,49 @@ def top_stars(page, count: int) -> list:
     return stars
 
 
-def _click_sort_lowest(page) -> None:
-    """Drive the sort menu to 'Lowest rating'. Says nothing about whether it
-    worked — _wait_until_sorted is what decides that."""
+def sort_newest(page) -> bool:
+    """Re-sort the panel by Newest. True if the list came back.
+
+    Unlike the lowest-rating sort there's nothing to verify the outcome
+    against — you can't tell "newest first" from the star ratings — so this
+    checks the list re-rendered and trusts the click. Safe, because a failed
+    newest sort just leaves us reading the default order, which we already
+    handle; it can only cost us freshness, never correctness."""
+    for _ in range(REVIEWS["sort_attempts"]):
+        try:
+            if _open_sort_menu(page) and page.evaluate(PICK_NEWEST_JS):
+                page.wait_for_selector("div[data-review-id]",
+                                       timeout=REVIEWS["panel_timeout_ms"])
+                page.wait_for_timeout(REVIEWS["sort_wait_ms"])
+                return True
+        except Exception as err:
+            log.debug("newest sort failed (%s)", type(err).__name__)
+    return False
+
+
+def _open_sort_menu(page) -> bool:
+    """Scroll to the top, open the sort menu, wait for its options."""
     page.keyboard.press("Escape")           # clear a menu left open by a retry
-    try:                                    # control is at the top; we scrolled away
+    try:
         page.evaluate(SCROLL_TOP_JS)
         page.wait_for_timeout(REVIEWS["scroll_wait_ms"])
     except Exception as err:
         log.debug("scroll to top failed (%s)", type(err).__name__)
     if not page.evaluate(OPEN_SORT_JS):
-        return
+        return False
     try:
         page.wait_for_selector('[role="menuitemradio"], [role="menuitem"]',
                                timeout=REVIEWS["menu_timeout_ms"])
+        return True
     except Exception:
-        return                              # menu never opened
-    page.evaluate(PICK_LOWEST_JS)
+        return False                        # menu never opened
+
+
+def _click_sort_lowest(page) -> None:
+    """Drive the sort menu to 'Lowest rating'. Says nothing about whether it
+    worked — _wait_until_sorted is what decides that."""
+    if _open_sort_menu(page):
+        page.evaluate(PICK_LOWEST_JS)
 
 
 def _wait_until_sorted(page) -> bool:

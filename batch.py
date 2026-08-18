@@ -99,6 +99,16 @@ def main() -> int:
         return 2
 
     queries = build_queries(niches, cities) + terms
+    # A vertical carries its own search terms and cities. Picking one should
+    # mean "search all of them" — a single term against a single city returns
+    # whatever Google has for that phrase (36 for private dentists in
+    # Manchester), which is nowhere near the limit the operator asked for.
+    if not queries and args.vertical:
+        from qualifier import profiles
+        queries = profiles.queries(args.vertical)
+        if queries:
+            log.info("  Vertical %r -> %d searches from its profile",
+                     args.vertical, len(queries))
     if not queries:
         print("  Give me something to search. Examples:\n"
               '    python batch.py --niches "dentists,plumbers" --cities "Austin TX"\n'
@@ -116,6 +126,7 @@ def main() -> int:
     enrich_after = args.enrich or (args.fields and store.wants_enrichment(groups))
 
     conn = store.connect()
+    collected = 0          # running total, so --limit is a target not a per-job cap
     results = []
     stopped_early = False
     enrich_summary = None
@@ -130,7 +141,21 @@ def main() -> int:
                     stopped_early = True
                     break
 
-                log.info("\n  === Job %d/%d: %s ===", i, len(queries), query)
+                # --limit is a target for the WHOLE batch, not per search. One
+                # phrase in one city returns whatever Google has for it, so a
+                # per-job cap of 500 would never be reached and the operator
+                # would keep seeing 36.
+                remaining = None
+                if args.limit:
+                    remaining = args.limit - collected
+                    if remaining <= 0:
+                        log.info("\n  Reached the %d-lead target — stopping with "
+                                 "%d job(s) unrun (they resume next time).",
+                                 args.limit, len(queries) - i + 1)
+                        break
+                log.info("\n  === Job %d/%d: %s ===  (%d/%s collected so far)",
+                         i, len(queries), query, collected,
+                         args.limit or "no target")
                 started = datetime.now().isoformat(timespec="seconds")
                 run_leads, outcome = [], "error"
                 filters = {"min_rating": args.min_rating,
@@ -138,7 +163,7 @@ def main() -> int:
                            "skip_closed": args.skip_closed}
                 try:
                     outcome = scrape_query(page, conn, query, run_leads,
-                                           limit=args.limit, filters=filters,
+                                           limit=remaining, filters=filters,
                                            columns=columns,
                                            vertical=args.vertical,
                                            want_reviews="reviews_text" in groups)
@@ -158,6 +183,7 @@ def main() -> int:
                     log.warning("  Job failed (%s: %s) — skipping to the next.",
                                 type(err).__name__, err)
                 finally:
+                    collected += len(run_leads)
                     if not outcome.startswith("blocked"):
                         store.record_run(conn, query, started,
                                          datetime.now().isoformat(timespec="seconds"),

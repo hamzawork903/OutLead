@@ -24,7 +24,7 @@ from core import events
 from core.logbook import get_logger, setup_logging
 from enrichment import llm_writer, verify
 from enrichment.harvester import EnrichResult, harvest_site
-from storage import store
+from storage import gate_store, store
 
 log = get_logger(__name__)
 
@@ -107,6 +107,10 @@ def run_enrichment(conn, query=None, limit=None, workers=None) -> dict:
                 store.save_enrichment(conn, place_key, email, result.all_emails,
                                       result.source, result.status, socials,
                                       phones, email_status, now)
+                # Keep the homepage text we already have in hand — the gate
+                # reads it for accreditations and out-of-hours claims, and
+                # storing it is what lets the gate re-run offline later.
+                gate_store.save_website_text(conn, place_key, result.page_text)
                 if emails_json:
                     store.save_llm_emails(conn, place_key, emails_json, now)
                 # Live update for the UI table (fills the email/social cells).

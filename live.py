@@ -42,7 +42,7 @@ from main import rate_gate, scrape_query
 from outreach import _resolve_dry_run, send_one_step
 from qualifier.qualify import qualify
 from sequencer import sequence
-from storage import campaigns, store
+from storage import campaigns, gate_store, store
 
 log = get_logger(__name__)
 
@@ -64,6 +64,10 @@ def _make_on_lead(sync_qualify: bool, sync_send: bool, dry_run: bool,
                                   result.source, result.status,
                                   result.socials or {}, result.phones or [],
                                   email_status, now)
+            # Keep the homepage text we already fetched. The gate reads it for
+            # accreditations and out-of-hours claims, and storing it here is
+            # what lets the gate re-run later without touching the network.
+            gate_store.save_website_text(conn, lead.place_key, result.page_text)
             if email and email_status == "valid":
                 emails_json = llm_writer.compose_emails(
                     store.lead_row(conn, lead.place_key), result.page_text)

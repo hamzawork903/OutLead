@@ -1,0 +1,1798 @@
+{
+  "meta": {
+    "version": "1.0",
+    "created": "2026-08-11",
+    "country": "United Kingdom",
+    "ranked_by": "speed_to_revenue",
+    "note": "avg_job_value_gbp figures are working estimates. Tune them from real discovery calls - they drive the arithmetic line in the email and are the single most important number in this file."
+  },
+  "shared": {
+    "cities_wave_1": [
+      "Manchester",
+      "Leeds",
+      "Birmingham",
+      "Glasgow",
+      "Bristol"
+    ],
+    "cities_wave_2": [
+      "Liverpool",
+      "Sheffield",
+      "Nottingham",
+      "Newcastle",
+      "Leicester"
+    ],
+    "cities_wave_3": [
+      "Coventry",
+      "Southampton",
+      "Portsmouth",
+      "Brighton",
+      "Reading",
+      "Milton Keynes",
+      "Luton",
+      "Norwich",
+      "Hull",
+      "Stoke-on-Trent"
+    ],
+    "cities_london_boroughs": [
+      "Croydon",
+      "Bromley",
+      "Enfield",
+      "Barnet",
+      "Ealing",
+      "Hounslow",
+      "Romford",
+      "Kingston",
+      "Harrow",
+      "Wandsworth"
+    ],
+    "gate": {
+      "rating_min": 4.0,
+      "rating_max": 5.0,
+      "review_count_min": 25,
+      "review_count_max": 250,
+      "requires_website": true,
+      "requires_phone": true,
+      "requires_evidence_quote": true,
+      "evidence_max_age_months": 18,
+      "quality_complaint_ratio_max": 0.5,
+      "quality_ratio_min_sample": 4,
+      "structural_signals_required": 2
+    },
+    "global_chains_exclude": [
+      "british gas",
+      "homeserve",
+      "dyno",
+      "pimlico",
+      "aspect",
+      "24|7 home rescue",
+      "hometree",
+      "boxt",
+      "checkatrade",
+      "rated people",
+      "local heroes",
+      "mybuilder",
+      "trustatrader",
+      "npower",
+      "eon",
+      "octopus",
+      "corgi",
+      "domestic & general"
+    ],
+    "maps_categories_exclude_global": [
+      "Plumbing supply store",
+      "Bathroom supply store",
+      "Hardware store",
+      "Building materials supplier",
+      "Property management company",
+      "Facility management company",
+      "Wholesaler",
+      "Manufacturer",
+      "Trade school",
+      "Employment agency"
+    ],
+    "vendor_email_domains": [
+      "moatable.com",
+      "webform.boxly.ai",
+      "indiantypefoundry.com",
+      "sentry.io",
+      "wixpress.com",
+      "godaddy.com",
+      "squarespace.com"
+    ],
+    "quality_complaint_terms": [
+      "overcharged",
+      "over charged",
+      "rip off",
+      "ripoff",
+      "scam",
+      "damaged",
+      "damage to",
+      "botched",
+      "shoddy",
+      "cowboy",
+      "left a mess",
+      "made it worse",
+      "had to redo",
+      "poor workmanship",
+      "incompetent",
+      "dangerous",
+      "not qualified",
+      "illegal",
+      "took my money",
+      "never finished",
+      "walked off the job",
+      "deceptive billing",
+      "surprise bill",
+      "out of network",
+      "unnecessary",
+      "upsell",
+      "prepay",
+      "hidden charges"
+    ],
+    "offers": {
+      "phone_evidence": {
+        "sell": "AI phone agent that answers every call in two rings, triages the emergency from the quote request, and texts the on-call engineer",
+        "angle": "customers are publicly saying they couldn't get through",
+        "priority": 1
+      },
+      "no_review_replies": {
+        "sell": "review monitoring that alerts you to every new review and drafts a reply for approval",
+        "angle": "years of reviews with no reply from the business — free reputation sitting unclaimed, and the proof is public",
+        "priority": 2
+      },
+      "hours_mismatch": {
+        "sell": "AI phone agent covering the hours you advertise but don't staff",
+        "angle": "the website promises emergency cover, the opening hours stop at 5pm, and every call in between goes nowhere",
+        "priority": 3
+      },
+      "no_booking": {
+        "sell": "online booking that writes straight into your diary",
+        "angle": "every appointment has to be made by phone, so anything that arrives while you're on a job is lost",
+        "priority": 4
+      },
+      "no_email": {
+        "sell": "a proper enquiry inbox plus the AI phone agent",
+        "angle": "the phone is the only way in, so a missed call is a missed customer with no second chance",
+        "priority": 5
+      }
+    },
+    "national_phone_prefixes": [
+      "0300",
+      "0303",
+      "0330",
+      "0333",
+      "0343",
+      "0345",
+      "0370",
+      "0371",
+      "0372",
+      "0800",
+      "0808",
+      "0844",
+      "0845",
+      "0870",
+      "0871",
+      "0872"
+    ]
+  },
+  "verticals": [
+    {
+      "rank": 1,
+      "vertical": "Emergency Plumbing",
+      "tier": 1,
+      "search_terms": [
+        "emergency plumber",
+        "24 hour plumber",
+        "plumber",
+        "burst pipe repair",
+        "emergency plumbing service"
+      ],
+      "maps_categories_include": [
+        "Plumber",
+        "Drainage service",
+        "Gasfitter",
+        "Gas engineer",
+        "Plumbing service",
+        "Emergency plumber"
+      ],
+      "maps_categories_exclude": [
+        "Bathroom remodeler",
+        "Kitchen remodeler",
+        "Plumbing supply store"
+      ],
+      "what_i_sell": "AI phone agent that answers in two rings, triages emergency vs routine, captures address and fault, SMS-alerts the on-call engineer instantly, books routine work into the diary. Plus missed-call-to-SMS recovery in 30 seconds.",
+      "problems_it_fixes": [
+        "11pm calls hitting voicemail while the engineer is under a sink",
+        "Owner answering the phone mid-job, badly",
+        "No triage - a burst pipe queues behind a quote request",
+        "Caller rings three firms and books the first to answer",
+        "No record of who called or what they wanted"
+      ],
+      "avg_job_value_gbp": 180,
+      "setup_price_gbp": [
+        1000,
+        1500
+      ],
+      "price_per_month_gbp": [
+        250,
+        400
+      ],
+      "after_hours_loss_gbp_month": [
+        900,
+        2500
+      ],
+      "has_receptionist": "rarely",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "high",
+      "emergency_scenario": "burst pipe at 11pm",
+      "caller_state": "panicked, will ring three firms and book the first to answer",
+      "peak_season": "year-round, minor winter lift",
+      "seasonal_hook": null,
+      "primary_objection": "I answer it myself / my wife does it",
+      "objection_counter": "Then you're the bottleneck at 11pm when you're already on a job - and she shouldn't have to be on call.",
+      "min_size_signal": [
+        "25+ reviews",
+        "2+ vans in photos",
+        "named engineers on site",
+        "advertises 24/7",
+        "running Google Ads"
+      ],
+      "chains_to_exclude": [
+        "dyno-rod",
+        "metro rod",
+        "drain doctor",
+        "rooter-man",
+        "pimlico"
+      ],
+      "good_fit_pattern": [
+        "4.3 stars, 62 reviews, 4 vans, site claims 24/7, 3 reviews in 6mo about no answer, running Ads",
+        "4.5 stars, 94 reviews, family firm 6 staff, 1-star reviews about voicemail and no callback"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 17 reviews, one-man band, no evidence, no call volume to recover",
+        "3.4 stars, 210 reviews, complaints about overcharging and botched work - quality problem not phone problem"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "gas safe",
+        "watersafe",
+        "ciphe",
+        "aphc"
+      ]
+    },
+    {
+      "rank": 2,
+      "vertical": "Boiler & Gas / Heating Engineer",
+      "tier": 1,
+      "search_terms": [
+        "boiler repair",
+        "gas engineer",
+        "heating engineer",
+        "boiler installation",
+        "boiler service"
+      ],
+      "maps_categories_include": [
+        "Heating contractor",
+        "Gasfitter",
+        "Boiler supplier",
+        "Furnace repair service",
+        "Gas engineer",
+        "Boiler service",
+        "Heating engineer"
+      ],
+      "maps_categories_exclude": [
+        "Boiler manufacturer",
+        "Plumbing supply store",
+        "Air conditioning contractor"
+      ],
+      "what_i_sell": "AI phone agent for winter overflow. Answers every call during peak, triages no-heat emergencies ahead of quote requests, captures boiler make and fault code, books service slots into the diary, escalates vulnerable-customer no-heat calls straight to the engineer.",
+      "problems_it_fixes": [
+        "January phone volume triples and 60% goes unanswered",
+        "No-heat emergencies queue behind routine quote calls",
+        "Engineers on jobs all day, phone rings out",
+        "Annual service reminders never get made",
+        "Quote requests go cold before anyone calls back"
+      ],
+      "avg_job_value_gbp": 350,
+      "setup_price_gbp": [
+        1200,
+        1800
+      ],
+      "price_per_month_gbp": [
+        300,
+        500
+      ],
+      "after_hours_loss_gbp_month": [
+        1500,
+        4000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "high",
+      "emergency_scenario": "no heating on a Sunday in January",
+      "caller_state": "cold, urgent, low patience, often elderly",
+      "peak_season": "October to February",
+      "seasonal_hook": "Your phones are about to triple. What happens to the calls you can't get to in January?",
+      "primary_objection": "We manage fine / we call people back",
+      "objection_counter": "In August, sure. The question is the third week of January when you've got 40 calls before lunch.",
+      "min_size_signal": [
+        "25+ reviews",
+        "Gas Safe registered number on site",
+        "3+ engineers",
+        "offers annual service plans",
+        "running Google Ads"
+      ],
+      "chains_to_exclude": [
+        "british gas",
+        "homeserve",
+        "boxt",
+        "hometree",
+        "help-link",
+        "24|7 home rescue"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 80 reviews, 5 engineers, service plans offered, winter reviews about no callback",
+        "4.2 stars, 120 reviews, Gas Safe, complaints clustered Dec-Feb about waiting"
+      ],
+      "bad_fit_pattern": [
+        "4.8 stars, 20 reviews, sole trader, no capacity to grow",
+        "3.6 stars, complaints about failed installs and no-shows"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "gas safe",
+        "oftec",
+        "hetas",
+        "ciphe"
+      ]
+    },
+    {
+      "rank": 3,
+      "vertical": "Water Damage & Flood Restoration",
+      "tier": 1,
+      "search_terms": [
+        "water damage restoration",
+        "flood restoration",
+        "flood damage repair",
+        "water damage company",
+        "emergency drying"
+      ],
+      "maps_categories_include": [
+        "Water damage restoration service",
+        "Fire damage restoration service",
+        "Building restoration service"
+      ],
+      "maps_categories_exclude": [
+        "Insurance agency",
+        "Loss adjuster",
+        "Cleaning service"
+      ],
+      "what_i_sell": "AI phone agent for emergency intake. Answers 24/7, captures property address, water source, affected rooms and insurer details, escalates to the on-call team by SMS within seconds, and never lets an insurance-funded job go to voicemail.",
+      "problems_it_fixes": [
+        "Every job is an emergency and half arrive out of hours",
+        "Insurance-funded work worth thousands lost to a missed ring",
+        "No structured intake so the crew arrives underprepared",
+        "Competing firms answer first and win the claim"
+      ],
+      "avg_job_value_gbp": 2500,
+      "setup_price_gbp": [
+        1500,
+        2500
+      ],
+      "price_per_month_gbp": [
+        400,
+        800
+      ],
+      "after_hours_loss_gbp_month": [
+        5000,
+        15000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "never",
+      "runs_ads_likelihood": "very high",
+      "emergency_scenario": "ceiling coming down at 2am",
+      "caller_state": "distressed, high urgency, insurer often involved",
+      "peak_season": "October to March, spikes with storms",
+      "seasonal_hook": "Storm season starts in weeks. One missed call is a five-figure claim gone.",
+      "primary_objection": "We have an out-of-hours mobile",
+      "objection_counter": "So does everyone. The question is whether it gets answered on the second ring at 2am, or the ninth.",
+      "min_size_signal": [
+        "25+ reviews",
+        "works with insurers",
+        "IICRC or BDMA accreditation",
+        "24/7 claimed",
+        "running Google Ads"
+      ],
+      "chains_to_exclude": [
+        "servicemaster",
+        "belfor",
+        "rainbow international",
+        "polygon",
+        "ics"
+      ],
+      "good_fit_pattern": [
+        "4.3 stars, 45 reviews, insurance-approved, 24/7 claimed, review saying nobody answered during a flood",
+        "4.5 stars, 70 reviews, BDMA accredited, complaint about slow response"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 12 reviews, too small for claim work",
+        "3.5 stars, complaints about incomplete drying and disputes"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "iicrc",
+        "bdma",
+        "napit"
+      ]
+    },
+    {
+      "rank": 4,
+      "vertical": "Emergency Electrician",
+      "tier": 1,
+      "search_terms": [
+        "emergency electrician",
+        "24 hour electrician",
+        "electrician",
+        "electrical repairs",
+        "fuse box repair"
+      ],
+      "maps_categories_include": [
+        "Electrician",
+        "Electrical installation service",
+        "Electrical engineer",
+        "Emergency electrician"
+      ],
+      "maps_categories_exclude": [
+        "Electrical supply store",
+        "Lighting store",
+        "Solar energy contractor"
+      ],
+      "what_i_sell": "AI phone agent that answers every call, separates power-out emergencies from quotable work, captures address and fault, SMS-dispatches the on-call electrician, and books routine jobs into the diary.",
+      "problems_it_fixes": [
+        "Power-out calls at night going to voicemail",
+        "Electrician up a ladder, phone ringing out",
+        "No way to tell an emergency from a quote request",
+        "Quote requests never followed up"
+      ],
+      "avg_job_value_gbp": 170,
+      "setup_price_gbp": [
+        1000,
+        1500
+      ],
+      "price_per_month_gbp": [
+        250,
+        400
+      ],
+      "after_hours_loss_gbp_month": [
+        800,
+        2200
+      ],
+      "has_receptionist": "rarely",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "medium",
+      "emergency_scenario": "power out across the whole house at 10pm",
+      "caller_state": "worried about safety, wants someone tonight",
+      "peak_season": "year-round, winter lift",
+      "seasonal_hook": null,
+      "primary_objection": "I answer it myself",
+      "objection_counter": "Not when you're inside a consumer unit. That's exactly when the emergency calls come in.",
+      "min_size_signal": [
+        "25+ reviews",
+        "NICEIC or NAPIT registered",
+        "2+ electricians",
+        "advertises 24/7"
+      ],
+      "chains_to_exclude": [
+        "aspect",
+        "pimlico",
+        "homeserve",
+        "local heroes"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 55 reviews, NICEIC, 3 electricians, review about unanswered calls",
+        "4.2 stars, 90 reviews, 24/7 claimed, complaint about no callback"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 15 reviews, sole trader with a full diary",
+        "3.5 stars, complaints about certification and poor work"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "niceic",
+        "napit",
+        "elecsa",
+        "stroma"
+      ]
+    },
+    {
+      "rank": 5,
+      "vertical": "Drainage & Blocked Drains",
+      "tier": 1,
+      "search_terms": [
+        "blocked drain",
+        "drainage company",
+        "drain unblocking",
+        "emergency drainage",
+        "drain repair"
+      ],
+      "maps_categories_include": [
+        "Drainage service",
+        "Septic system service",
+        "Plumber",
+        "Drainage contractor",
+        "Plumbing service"
+      ],
+      "maps_categories_exclude": [
+        "Plumbing supply store",
+        "Civil engineering company",
+        "Groundworks contractor"
+      ],
+      "what_i_sell": "AI phone agent that answers every call, captures address, drain type and symptoms, triages sewage backups as emergencies, and dispatches the jetting van by SMS in seconds.",
+      "problems_it_fixes": [
+        "Sewage backing up on a Sunday and nobody picks up",
+        "Van crew can't answer while jetting",
+        "Commercial contract calls missed and penalised",
+        "No intake detail so the wrong kit turns up"
+      ],
+      "avg_job_value_gbp": 220,
+      "setup_price_gbp": [
+        1000,
+        1500
+      ],
+      "price_per_month_gbp": [
+        250,
+        450
+      ],
+      "after_hours_loss_gbp_month": [
+        1000,
+        3000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "never",
+      "runs_ads_likelihood": "high",
+      "emergency_scenario": "sewage coming back up the toilet on a Sunday",
+      "caller_state": "urgent and unpleasant problem, will not wait",
+      "peak_season": "autumn and winter",
+      "seasonal_hook": "Leaf fall and freeze-thaw season is your volume spike. Worth deciding now what happens to the overflow.",
+      "primary_objection": "The lads pick up when they can",
+      "objection_counter": "When they can is the problem. A blocked drain caller gives you about ninety seconds before they try the next firm.",
+      "min_size_signal": [
+        "25+ reviews",
+        "CCTV survey offered",
+        "jetting fleet mentioned",
+        "commercial contracts",
+        "running Google Ads"
+      ],
+      "chains_to_exclude": [
+        "dyno-rod",
+        "metro rod",
+        "drain doctor",
+        "lanes group",
+        "rooter-man"
+      ],
+      "good_fit_pattern": [
+        "4.3 stars, 50 reviews, 3 jetting vans, commercial and domestic, review about no answer",
+        "4.5 stars, 75 reviews, CCTV surveys, complaint about waiting days"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 14 reviews, one van, no volume",
+        "3.4 stars, complaints about repeat blockages and billing"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "nadc",
+        "watersafe",
+        "ciphe"
+      ]
+    },
+    {
+      "rank": 6,
+      "vertical": "Roofing & Emergency Roof Repair",
+      "tier": 1,
+      "search_terms": [
+        "emergency roof repair",
+        "roofing company",
+        "roof leak repair",
+        "roofer",
+        "flat roof repair"
+      ],
+      "maps_categories_include": [
+        "Roofing contractor",
+        "Roofing service",
+        "Gutter cleaning service",
+        "Roofer",
+        "Flat roof contractor"
+      ],
+      "maps_categories_exclude": [
+        "Roofing supply store",
+        "Building materials supplier",
+        "Scaffolding service"
+      ],
+      "what_i_sell": "AI phone agent that answers storm-surge call volume, captures address, roof type and leak location, books survey slots into the diary, and escalates active-leak emergencies to the on-call team.",
+      "problems_it_fixes": [
+        "Storm week produces 5x normal calls and most go unanswered",
+        "Roofers on site all day, nobody on the phone",
+        "Survey requests go cold before a callback",
+        "Insurance work lost to whoever answered first"
+      ],
+      "avg_job_value_gbp": 500,
+      "setup_price_gbp": [
+        1200,
+        1800
+      ],
+      "price_per_month_gbp": [
+        300,
+        500
+      ],
+      "after_hours_loss_gbp_month": [
+        1500,
+        5000
+      ],
+      "has_receptionist": "rarely",
+      "books_online": "never",
+      "runs_ads_likelihood": "medium",
+      "emergency_scenario": "water coming through the bedroom ceiling during a storm",
+      "caller_state": "urgent during storms, comparison-shopping otherwise",
+      "peak_season": "October to March, spikes with named storms",
+      "seasonal_hook": "First named storm of the season, your phone does a week's volume in a day. What happens to the calls you miss?",
+      "primary_objection": "We ring people back when we're off the roof",
+      "objection_counter": "By then they've had three other roofers out. Storm work goes to whoever answers, not whoever's best.",
+      "min_size_signal": [
+        "25+ reviews",
+        "2+ crews",
+        "insurance work mentioned",
+        "scaffolding owned",
+        "10+ year guarantees"
+      ],
+      "chains_to_exclude": [
+        "aspect",
+        "homeserve",
+        "checkatrade",
+        "local heroes"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 60 reviews, 2 crews, insurance work, storm-period complaints about no answer",
+        "4.2 stars, 100 reviews, guarantees offered, review saying went elsewhere"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 18 reviews, sole trader, seasonal only",
+        "3.3 stars, complaints about leaks returning and disputes"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "nfrc",
+        "confederation of roofing",
+        "trustmark"
+      ]
+    },
+    {
+      "rank": 7,
+      "vertical": "Air Conditioning / HVAC",
+      "tier": 3,
+      "search_terms": [
+        "air conditioning installation",
+        "air con repair",
+        "air conditioning company",
+        "hvac engineer",
+        "aircon service"
+      ],
+      "maps_categories_include": [
+        "Air conditioning contractor",
+        "HVAC contractor",
+        "Air conditioning repair service",
+        "Air conditioning system supplier",
+        "HVAC engineer"
+      ],
+      "maps_categories_exclude": [
+        "Air conditioning store",
+        "Appliance store",
+        "Heating contractor"
+      ],
+      "what_i_sell": "AI phone agent that captures every enquiry during heatwave surges, qualifies domestic vs commercial and repair vs install, books survey appointments, and routes breakdown calls on maintenance contracts straight to the engineer.",
+      "problems_it_fixes": [
+        "Heatwave week produces a month of calls and most go unanswered",
+        "High-value install enquiries lost to slow callbacks",
+        "Commercial contract breakdowns missed out of hours",
+        "No qualification so engineers waste days on tyre-kickers"
+      ],
+      "avg_job_value_gbp": 900,
+      "setup_price_gbp": [
+        1200,
+        2000
+      ],
+      "price_per_month_gbp": [
+        300,
+        600
+      ],
+      "after_hours_loss_gbp_month": [
+        2000,
+        6000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "high",
+      "emergency_scenario": "server room aircon failed overnight",
+      "caller_state": "urgent in heat, comparison-shopping for installs",
+      "peak_season": "May to September",
+      "seasonal_hook": "Next heatwave you'll take a month of calls in a week. Decide now what happens to the ones you miss.",
+      "primary_objection": "Our office handles the phone in hours",
+      "objection_counter": "In hours is covered. It's the 40 calls on the hottest Saturday of the year that turn into someone else's installs.",
+      "min_size_signal": [
+        "25+ reviews",
+        "F-Gas certified",
+        "commercial contracts",
+        "3+ engineers",
+        "running Google Ads"
+      ],
+      "chains_to_exclude": [
+        "daikin",
+        "mitsubishi electric",
+        "toshiba",
+        "andrews sykes",
+        "aggreko"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 50 reviews, F-Gas, commercial and domestic, summer complaints about no response",
+        "4.3 stars, 80 reviews, maintenance contracts, review about waiting weeks"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 16 reviews, install-only sole trader",
+        "3.5 stars, complaints about faulty installs"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "f-gas",
+        "refcom",
+        "reci",
+        "besa"
+      ]
+    },
+    {
+      "rank": 8,
+      "vertical": "Locksmith",
+      "tier": 1,
+      "search_terms": [
+        "24 hour locksmith",
+        "emergency locksmith",
+        "locksmith",
+        "lock repair",
+        "locked out"
+      ],
+      "maps_categories_include": [
+        "Locksmith",
+        "Key duplication service",
+        "Emergency locksmith",
+        "Lock shop"
+      ],
+      "maps_categories_exclude": [
+        "Hardware store",
+        "Security system supplier",
+        "Safe & vault shop"
+      ],
+      "what_i_sell": "AI phone agent that answers instantly at any hour, captures location, lock type and access situation, dispatches the nearest locksmith by SMS, and gives the caller an ETA on the first call.",
+      "problems_it_fixes": [
+        "Lockout calls are pure speed - slowest to answer loses every time",
+        "Nights and weekends are peak demand and worst coverage",
+        "Locksmith driving or working can't take the next call",
+        "No ETA given so callers try the next firm anyway"
+      ],
+      "avg_job_value_gbp": 130,
+      "setup_price_gbp": [
+        900,
+        1400
+      ],
+      "price_per_month_gbp": [
+        200,
+        350
+      ],
+      "after_hours_loss_gbp_month": [
+        800,
+        2500
+      ],
+      "has_receptionist": "never",
+      "books_online": "never",
+      "runs_ads_likelihood": "very high",
+      "emergency_scenario": "locked out at 1am in the rain",
+      "caller_state": "stranded, will call until someone answers, zero patience",
+      "peak_season": "year-round, weekend nights",
+      "seasonal_hook": null,
+      "primary_objection": "It's just me, I answer when I'm free",
+      "objection_counter": "A lockout caller gives you one ring. If you're mid-job you're not losing a call, you're losing the job.",
+      "min_size_signal": [
+        "25+ reviews",
+        "MLA approved",
+        "24/7 claimed",
+        "running Google Ads",
+        "2+ operatives"
+      ],
+      "chains_to_exclude": [
+        "timpson",
+        "keytek",
+        "aspect",
+        "homeserve",
+        "local heroes"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 70 reviews, MLA approved, 24/7 claimed, reviews about unanswered night calls",
+        "4.5 stars, 110 reviews, running Ads, complaint about no answer when locked out"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 20 reviews, part-time operator",
+        "3.4 stars, complaints about pricing on arrival"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "mla",
+        "master locksmiths"
+      ]
+    },
+    {
+      "rank": 9,
+      "vertical": "Garage Doors",
+      "tier": 3,
+      "search_terms": [
+        "garage door repair",
+        "garage door installation",
+        "garage door company",
+        "roller shutter repair"
+      ],
+      "maps_categories_include": [
+        "Garage door supplier",
+        "Garage builder",
+        "Door supplier"
+      ],
+      "maps_categories_exclude": [
+        "Hardware store",
+        "Building materials supplier",
+        "Fencing contractor"
+      ],
+      "what_i_sell": "AI phone agent that answers every enquiry, separates stuck-door emergencies from new-install quotes, captures door type and dimensions, and books survey appointments into the diary.",
+      "problems_it_fixes": [
+        "Door stuck open overnight is a security emergency nobody answers",
+        "Install quote enquiries lost to slow callbacks",
+        "Two-man teams on site all day with no phone cover",
+        "No qualification so surveys get wasted"
+      ],
+      "avg_job_value_gbp": 400,
+      "setup_price_gbp": [
+        1000,
+        1600
+      ],
+      "price_per_month_gbp": [
+        250,
+        450
+      ],
+      "after_hours_loss_gbp_month": [
+        1000,
+        3000
+      ],
+      "has_receptionist": "rarely",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "medium",
+      "emergency_scenario": "garage door jammed open with the car and tools inside",
+      "caller_state": "security-anxious for repairs, price-comparing for installs",
+      "peak_season": "spring and autumn",
+      "seasonal_hook": null,
+      "primary_objection": "We return calls each evening",
+      "objection_counter": "Each evening is fine for quotes. It's no use to the person whose garage is standing open right now.",
+      "min_size_signal": [
+        "25+ reviews",
+        "showroom or fitted examples",
+        "2+ fitters",
+        "commercial shutters offered"
+      ],
+      "chains_to_exclude": [
+        "hormann",
+        "garador",
+        "cardale",
+        "rollerdor"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 45 reviews, domestic and commercial, review about nobody answering",
+        "4.3 stars, 65 reviews, 2 fitting teams, complaint about waiting for a quote"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 15 reviews, one fitter",
+        "3.5 stars, complaints about faulty motors and no aftercare"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "dhf",
+        "door and hardware federation"
+      ]
+    },
+    {
+      "rank": 10,
+      "vertical": "Pest Control",
+      "tier": 1,
+      "search_terms": [
+        "pest control",
+        "emergency pest control",
+        "rat control",
+        "wasp nest removal",
+        "bed bug treatment"
+      ],
+      "maps_categories_include": [
+        "Pest control service",
+        "Animal control service",
+        "Pest control",
+        "Wildlife control service"
+      ],
+      "maps_categories_exclude": [
+        "Garden centre",
+        "Hardware store",
+        "Veterinarian"
+      ],
+      "what_i_sell": "AI phone agent that answers every call, captures pest type, property and severity, triages infestations that need same-day attention, and books treatment slots into the diary.",
+      "problems_it_fixes": [
+        "Wasp and rat calls are same-day or lost entirely",
+        "Technicians treating properties all day, phone unanswered",
+        "Commercial contract callouts missed out of hours",
+        "No triage so a bed bug emergency waits behind a routine survey"
+      ],
+      "avg_job_value_gbp": 160,
+      "setup_price_gbp": [
+        900,
+        1400
+      ],
+      "price_per_month_gbp": [
+        200,
+        400
+      ],
+      "after_hours_loss_gbp_month": [
+        700,
+        2000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "medium",
+      "emergency_scenario": "wasp nest by the front door and a child allergic to stings",
+      "caller_state": "distressed and squeamish, wants someone today",
+      "peak_season": "May to September for insects, autumn for rodents",
+      "seasonal_hook": "Rodent season starts as the weather turns. Your call volume roughly doubles from October.",
+      "primary_objection": "We pick up in working hours",
+      "objection_counter": "Pest calls come in the evening because that's when people see them. Working hours is exactly the wrong window.",
+      "min_size_signal": [
+        "25+ reviews",
+        "BPCA member",
+        "commercial contracts",
+        "2+ technicians"
+      ],
+      "chains_to_exclude": [
+        "rentokil",
+        "cleankill",
+        "ecolab",
+        "pest uk",
+        "safeguard"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 55 reviews, BPCA member, commercial and domestic, review about no callback",
+        "4.5 stars, 80 reviews, 3 technicians, complaint about waiting days for wasps"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 18 reviews, seasonal sole trader",
+        "3.4 stars, complaints about pests returning"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "bpca",
+        "npta",
+        "basis prompt"
+      ]
+    },
+    {
+      "rank": 11,
+      "vertical": "Private Dental Practice",
+      "tier": 2,
+      "search_terms": [
+        "private dentist",
+        "dental practice",
+        "dentist",
+        "emergency dentist"
+      ],
+      "maps_categories_include": [
+        "Dentist",
+        "Dental clinic",
+        "Emergency dental service"
+      ],
+      "maps_categories_exclude": [
+        "Dental laboratory",
+        "Dental supply store",
+        "Orthodontist"
+      ],
+      "what_i_sell": "AI phone agent that answers overflow and out-of-hours calls, triages dental pain as urgent, books into the practice diary, handles cancellations and reschedules, and fills gaps from the short-notice list.",
+      "problems_it_fixes": [
+        "Reception on one line while three more callers get engaged tone",
+        "New-patient enquiries lost to the practice that answered",
+        "Toothache calls at 8pm going nowhere",
+        "Cancellations leaving unfilled chair time",
+        "No follow-up on treatment plan enquiries"
+      ],
+      "avg_job_value_gbp": 800,
+      "setup_price_gbp": [
+        1500,
+        2500
+      ],
+      "price_per_month_gbp": [
+        400,
+        800
+      ],
+      "after_hours_loss_gbp_month": [
+        2000,
+        6000
+      ],
+      "has_receptionist": "always",
+      "books_online": "sometimes",
+      "runs_ads_likelihood": "high",
+      "emergency_scenario": "severe toothache on a Saturday night",
+      "caller_state": "in pain and will call the next practice immediately",
+      "peak_season": "January and September enquiry spikes",
+      "seasonal_hook": null,
+      "primary_objection": "We already have a receptionist",
+      "objection_counter": "She's the reason this works. She can only hold one line - the agent takes the other three and hands her the booked ones.",
+      "min_size_signal": [
+        "25+ reviews",
+        "3+ surgeries",
+        "private treatment listed",
+        "implants or Invisalign offered",
+        "running Google Ads"
+      ],
+      "chains_to_exclude": [
+        "mydentist",
+        "bupa dental",
+        "portman",
+        "rodericks",
+        "colosseum",
+        "dentex"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 90 reviews, 4 surgeries, implants offered, reviews about engaged phones",
+        "4.5 stars, 120 reviews, private plans, complaint about never getting through"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 25 reviews, single-surgeon NHS practice with a closed list",
+        "3.6 stars, complaints about treatment quality and billing"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "gdc",
+        "cqc",
+        "bda"
+      ]
+    },
+    {
+      "rank": 12,
+      "vertical": "Cosmetic & Implant Dentistry",
+      "tier": 2,
+      "search_terms": [
+        "dental implants",
+        "cosmetic dentist",
+        "invisalign",
+        "veneers",
+        "smile makeover"
+      ],
+      "maps_categories_include": [
+        "Dental implants periodontist",
+        "Cosmetic dentist",
+        "Dental clinic",
+        "Orthodontist"
+      ],
+      "maps_categories_exclude": [
+        "Dental laboratory",
+        "Dental supply store"
+      ],
+      "what_i_sell": "AI phone agent for high-value enquiry capture. Answers every call, qualifies treatment interest and budget readiness, books consultations, and follows up unbooked enquiries by SMS so a 10k case never dies in a voicemail.",
+      "problems_it_fixes": [
+        "A single missed call can be a 5-15k case",
+        "Enquiries arrive evenings and weekends after people research",
+        "Consultation no-shows with no reminder sequence",
+        "Marketing spend generating calls nobody answers",
+        "No follow-up on people who enquired but didn't book"
+      ],
+      "avg_job_value_gbp": 4000,
+      "setup_price_gbp": [
+        2000,
+        3500
+      ],
+      "price_per_month_gbp": [
+        500,
+        1200
+      ],
+      "after_hours_loss_gbp_month": [
+        8000,
+        25000
+      ],
+      "has_receptionist": "always",
+      "books_online": "sometimes",
+      "runs_ads_likelihood": "very high",
+      "emergency_scenario": null,
+      "caller_state": "researching, comparing 3-4 clinics, high intent, evening caller",
+      "peak_season": "January and pre-summer",
+      "seasonal_hook": null,
+      "primary_objection": "Our treatment coordinator handles enquiries",
+      "objection_counter": "She should be closing consultations, not fielding first calls at 9pm. The agent hands her qualified ones and follows up the rest.",
+      "min_size_signal": [
+        "25+ reviews",
+        "implant or Invisalign pricing published",
+        "treatment coordinator role",
+        "heavy Google Ads",
+        "finance options offered"
+      ],
+      "chains_to_exclude": [
+        "mydentist",
+        "bupa dental",
+        "portman",
+        "smile clinic",
+        "dentex"
+      ],
+      "good_fit_pattern": [
+        "4.5 stars, 100 reviews, implants from 2.5k, runs Ads, reviews about slow response to enquiries",
+        "4.4 stars, 140 reviews, finance offered, complaint about waiting for a consultation callback"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 22 reviews, general practice adding cosmetic as a sideline",
+        "3.7 stars, complaints about implant outcomes and refunds"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "gdc",
+        "cqc",
+        "bacd",
+        "ada"
+      ]
+    },
+    {
+      "rank": 13,
+      "vertical": "Med Spa / Aesthetics Clinic",
+      "tier": 2,
+      "search_terms": [
+        "aesthetics clinic",
+        "botox clinic",
+        "medical spa",
+        "dermal fillers",
+        "skin clinic"
+      ],
+      "maps_categories_include": [
+        "Medical spa",
+        "Skin care clinic",
+        "Aesthetics clinic",
+        "Beauty salon"
+      ],
+      "maps_categories_exclude": [
+        "Hairdresser",
+        "Nail salon",
+        "Massage spa",
+        "Cosmetics store"
+      ],
+      "what_i_sell": "AI phone agent that answers every enquiry and DM-equivalent call, qualifies treatment interest, books consultations into the clinic diary, sends confirmations, and rebooks the course appointments that usually get forgotten.",
+      "problems_it_fixes": [
+        "Practitioner is treating clients so nobody answers",
+        "Enquiries arrive evenings and weekends",
+        "No-shows on unconfirmed appointments",
+        "Course clients never rebooked for the next session",
+        "Ad spend generating unanswered calls"
+      ],
+      "avg_job_value_gbp": 600,
+      "setup_price_gbp": [
+        1500,
+        2500
+      ],
+      "price_per_month_gbp": [
+        400,
+        800
+      ],
+      "after_hours_loss_gbp_month": [
+        2000,
+        7000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "often",
+      "runs_ads_likelihood": "very high",
+      "emergency_scenario": null,
+      "caller_state": "price-comparing, image-conscious, evening researcher",
+      "peak_season": "pre-summer and pre-Christmas",
+      "seasonal_hook": "Pre-Christmas is your heaviest enquiry period. Worth fixing the phone before it starts.",
+      "primary_objection": "Everything comes through Instagram anyway",
+      "objection_counter": "The bookings that matter still happen on the phone, and the ones you miss don't come back to your DMs.",
+      "min_size_signal": [
+        "25+ reviews",
+        "medical practitioner named",
+        "prescription treatments offered",
+        "2+ treatment rooms",
+        "heavy Instagram and Ads"
+      ],
+      "chains_to_exclude": [
+        "sk:n",
+        "the private clinic",
+        "transform",
+        "harley street",
+        "superdrug"
+      ],
+      "good_fit_pattern": [
+        "4.5 stars, 70 reviews, nurse prescriber, 3 rooms, review about no reply to enquiry",
+        "4.4 stars, 95 reviews, runs Ads, complaint about unanswered calls"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 20 reviews, single practitioner working part-time",
+        "3.6 stars, complaints about results and aftercare"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "cqc",
+        "save face",
+        "jccp",
+        "nmc"
+      ]
+    },
+    {
+      "rank": 14,
+      "vertical": "Physiotherapy / Chiropractic / Osteopathy",
+      "tier": 2,
+      "search_terms": [
+        "physiotherapy clinic",
+        "chiropractor",
+        "osteopath",
+        "sports injury clinic",
+        "physio"
+      ],
+      "maps_categories_include": [
+        "Physiotherapist",
+        "Chiropractor",
+        "Osteopath",
+        "Sports medicine clinic"
+      ],
+      "maps_categories_exclude": [
+        "Gym",
+        "Massage spa",
+        "Personal trainer",
+        "Yoga studio"
+      ],
+      "what_i_sell": "AI phone agent that answers while clinicians are in treatment, books initial assessments, confirms and reschedules appointments, and rebooks the course sessions that drop off after visit two.",
+      "problems_it_fixes": [
+        "Clinician hands-on with a patient so the phone rings out",
+        "Acute pain callers book with whoever answers first",
+        "Course of treatment abandoned after session two with no rebooking",
+        "No-shows on unconfirmed slots",
+        "Reception is part-time or nonexistent"
+      ],
+      "avg_job_value_gbp": 300,
+      "setup_price_gbp": [
+        1200,
+        2000
+      ],
+      "price_per_month_gbp": [
+        300,
+        600
+      ],
+      "after_hours_loss_gbp_month": [
+        1200,
+        4000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "often",
+      "runs_ads_likelihood": "medium",
+      "emergency_scenario": "put their back out and can't stand up straight",
+      "caller_state": "in pain, wants an appointment today or tomorrow",
+      "peak_season": "January and post-marathon season",
+      "seasonal_hook": null,
+      "primary_objection": "We have online booking already",
+      "objection_counter": "Online booking works for the people who use it. Acute pain callers ring, and half of them ring at 8pm.",
+      "min_size_signal": [
+        "25+ reviews",
+        "2+ clinicians",
+        "HCPC or GCC registered",
+        "insurance work accepted",
+        "multiple treatment rooms"
+      ],
+      "chains_to_exclude": [
+        "nuffield",
+        "bupa",
+        "spire",
+        "ascenti",
+        "vita health"
+      ],
+      "good_fit_pattern": [
+        "4.5 stars, 60 reviews, 3 clinicians, insurance accepted, review about unanswered calls",
+        "4.4 stars, 85 reviews, sports injury focus, complaint about booking difficulty"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 20 reviews, single practitioner with a full book",
+        "3.6 stars, complaints about treatment outcomes"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "hcpc",
+        "csp",
+        "gcc",
+        "gosc"
+      ]
+    },
+    {
+      "rank": 15,
+      "vertical": "Personal Injury Solicitors",
+      "tier": 5,
+      "search_terms": [
+        "personal injury solicitors",
+        "accident claims solicitors",
+        "injury claim lawyers",
+        "medical negligence solicitors"
+      ],
+      "maps_categories_include": [
+        "Personal injury attorney",
+        "Law firm",
+        "Solicitor"
+      ],
+      "maps_categories_exclude": [
+        "Conveyancer",
+        "Notary public",
+        "Patent attorney",
+        "Barristers chambers"
+      ],
+      "what_i_sell": "AI intake agent for claim enquiries. Answers every call, runs the qualifying questions (accident date, liability, injury, treatment, existing representation), books the fee-earner call, and follows up incomplete intakes so a viable claim never leaks.",
+      "problems_it_fixes": [
+        "A single claim is worth thousands in fees and intake is the whole battle",
+        "Enquiries arrive evenings and weekends after an accident",
+        "Fee-earners in court or with clients cannot take intake calls",
+        "Unqualified enquiries eat fee-earner time",
+        "Claimant calls three firms and instructs the first that answers properly"
+      ],
+      "avg_job_value_gbp": 3500,
+      "setup_price_gbp": [
+        2500,
+        5000
+      ],
+      "price_per_month_gbp": [
+        800,
+        2000
+      ],
+      "after_hours_loss_gbp_month": [
+        10000,
+        30000
+      ],
+      "has_receptionist": "always",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "very high",
+      "emergency_scenario": null,
+      "caller_state": "shaken, recently injured, comparing firms, high intent",
+      "peak_season": "year-round, winter lift from slips and RTAs",
+      "seasonal_hook": null,
+      "primary_objection": "We have a dedicated intake team",
+      "objection_counter": "Then this is overflow and out-of-hours only. The claims you're losing are the ones that ring at 7pm on Friday.",
+      "min_size_signal": [
+        "25+ reviews",
+        "SRA regulated",
+        "no-win-no-fee offered",
+        "5+ fee earners",
+        "heavy Google Ads"
+      ],
+      "chains_to_exclude": [
+        "irwin mitchell",
+        "slater and gordon",
+        "thompsons",
+        "national accident helpline",
+        "minster law",
+        "admiral law"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 50 reviews, SRA regulated, no-win-no-fee, runs Ads, review about nobody returning calls",
+        "4.5 stars, 70 reviews, 8 fee earners, complaint about waiting weeks for contact"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 15 reviews, sole practitioner doing mixed work",
+        "3.5 stars, complaints about case handling and communication"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "sra",
+        "law society",
+        "apil"
+      ]
+    },
+    {
+      "rank": 16,
+      "vertical": "Windows, Doors & Conservatories",
+      "tier": 3,
+      "search_terms": [
+        "double glazing",
+        "window installation",
+        "upvc windows",
+        "conservatory installation",
+        "window repair"
+      ],
+      "maps_categories_include": [
+        "Window supplier",
+        "Door supplier",
+        "Conservatory supplier",
+        "Window installation service"
+      ],
+      "maps_categories_exclude": [
+        "Glass shop",
+        "Building materials supplier",
+        "Curtain store"
+      ],
+      "what_i_sell": "AI phone agent that captures every enquiry, qualifies property type and job scale, books survey appointments into the diary, and follows up quoted-not-closed leads by SMS.",
+      "problems_it_fixes": [
+        "Enquiries worth 4-8k lost to whoever booked the survey first",
+        "Installers on site all day with nobody on the phone",
+        "Quotes issued then never followed up",
+        "Survey no-shows with no confirmation sequence"
+      ],
+      "avg_job_value_gbp": 4500,
+      "setup_price_gbp": [
+        1500,
+        2500
+      ],
+      "price_per_month_gbp": [
+        400,
+        800
+      ],
+      "after_hours_loss_gbp_month": [
+        4000,
+        12000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "high",
+      "emergency_scenario": "window smashed and needs boarding tonight",
+      "caller_state": "researching, will get three quotes, months-long cycle",
+      "peak_season": "spring and late summer",
+      "seasonal_hook": null,
+      "primary_objection": "Our office covers the phone",
+      "objection_counter": "In hours, yes. Homeowners research this at 9pm after work - that's when the enquiries actually come.",
+      "min_size_signal": [
+        "25+ reviews",
+        "FENSA or CERTASS registered",
+        "showroom",
+        "2+ install teams",
+        "10-year guarantees"
+      ],
+      "chains_to_exclude": [
+        "anglian",
+        "everest",
+        "safestyle",
+        "eyg",
+        "cr smith",
+        "sehbac"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 70 reviews, FENSA, showroom, 3 teams, review about no callback on a quote",
+        "4.3 stars, 110 reviews, guarantees, complaint about waiting for a survey"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 18 reviews, one fitter doing repairs only",
+        "3.4 stars, complaints about install quality and deposits"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "fensa",
+        "certass",
+        "ggf",
+        "trustmark"
+      ]
+    },
+    {
+      "rank": 17,
+      "vertical": "Solar & Battery Installation",
+      "tier": 3,
+      "search_terms": [
+        "solar panel installation",
+        "solar installers",
+        "battery storage installation",
+        "solar pv"
+      ],
+      "maps_categories_include": [
+        "Solar energy contractor",
+        "Solar energy equipment supplier",
+        "Electrician",
+        "Solar energy company",
+        "Solar energy system service",
+        "Electrical installation service",
+        "Green energy supplier",
+        "Solar panel maintenance service"
+      ],
+      "maps_categories_exclude": [
+        "Solar energy equipment store",
+        "Wholesaler",
+        "Energy supplier"
+      ],
+      "what_i_sell": "AI phone agent that qualifies every enquiry on roof type, ownership, energy spend and timeline, books survey appointments, and nurtures the long decision cycle with automated follow-up so leads do not go cold.",
+      "problems_it_fixes": [
+        "7k+ enquiries lost to slow response",
+        "Long decision cycles with no follow-up sequence",
+        "Unqualified surveys wasting a full day each",
+        "Enquiries arrive evenings after people read their energy bill"
+      ],
+      "avg_job_value_gbp": 7500,
+      "setup_price_gbp": [
+        1800,
+        3000
+      ],
+      "price_per_month_gbp": [
+        500,
+        1000
+      ],
+      "after_hours_loss_gbp_month": [
+        5000,
+        15000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "rarely",
+      "runs_ads_likelihood": "very high",
+      "emergency_scenario": null,
+      "caller_state": "researching hard, comparing 3+ quotes, months to decide",
+      "peak_season": "spring through summer, spikes with energy price news",
+      "seasonal_hook": "Every energy price announcement spikes your enquiries for a fortnight. Worth being ready for the next one.",
+      "primary_objection": "We follow up our leads properly",
+      "objection_counter": "Over a four-month cycle, at what point does that stop? The agent keeps touching them until they book or say no.",
+      "min_size_signal": [
+        "25+ reviews",
+        "MCS certified",
+        "RECC or HIES member",
+        "2+ install teams",
+        "heavy Ads"
+      ],
+      "chains_to_exclude": [
+        "octopus energy",
+        "e.on",
+        "project solar",
+        "sunsave",
+        "egg"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 55 reviews, MCS certified, 2 teams, review about no response to enquiry",
+        "4.5 stars, 80 reviews, RECC member, complaint about waiting for a quote"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 16 reviews, electrician adding solar as a sideline",
+        "3.5 stars, complaints about performance shortfalls and aftercare"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "mcs",
+        "recc",
+        "hies",
+        "niceic"
+      ]
+    },
+    {
+      "rank": 18,
+      "vertical": "Emergency Glazing / Boarding Up",
+      "tier": 1,
+      "search_terms": [
+        "emergency glazier",
+        "boarding up service",
+        "24 hour glazier",
+        "emergency glass repair",
+        "shop front repair"
+      ],
+      "maps_categories_include": [
+        "Glazier",
+        "Glass repair service",
+        "Glass shop",
+        "Window installation service"
+      ],
+      "maps_categories_exclude": [
+        "Glass manufacturer",
+        "Mirror shop",
+        "Window supplier"
+      ],
+      "what_i_sell": "AI phone agent that answers break-in and breakage calls instantly at any hour, captures address, glass type and security risk, and dispatches the on-call glazier by SMS with an ETA.",
+      "problems_it_fixes": [
+        "Break-ins and breakages happen at night, coverage is worst then",
+        "Commercial clients with SLAs lost through a missed call",
+        "Glazier on a job cannot answer the next emergency",
+        "Insurance and letting agent work goes to whoever answered"
+      ],
+      "avg_job_value_gbp": 250,
+      "setup_price_gbp": [
+        1000,
+        1600
+      ],
+      "price_per_month_gbp": [
+        250,
+        450
+      ],
+      "after_hours_loss_gbp_month": [
+        1200,
+        3500
+      ],
+      "has_receptionist": "rarely",
+      "books_online": "never",
+      "runs_ads_likelihood": "medium",
+      "emergency_scenario": "shop front smashed at 3am and standing open",
+      "caller_state": "security emergency, needs someone now, often a business",
+      "peak_season": "autumn and winter, weekend nights",
+      "seasonal_hook": null,
+      "primary_objection": "We have an out-of-hours number",
+      "objection_counter": "Having one and answering it on the second ring at 3am are different things. Letting agents notice which.",
+      "min_size_signal": [
+        "25+ reviews",
+        "commercial and insurance work",
+        "24/7 claimed",
+        "2+ vans",
+        "letting agent contracts"
+      ],
+      "chains_to_exclude": [
+        "cloudy2clear",
+        "aspect",
+        "homeserve",
+        "clearview"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 45 reviews, commercial and domestic, 24/7 claimed, review about nobody answering at night",
+        "4.3 stars, 60 reviews, letting agent work, complaint about slow response"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 14 reviews, glass shop with no callout service",
+        "3.5 stars, complaints about pricing and finish"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "ggf",
+        "fensa",
+        "myglaziers"
+      ]
+    },
+    {
+      "rank": 19,
+      "vertical": "Skip Hire & Waste Clearance",
+      "tier": 4,
+      "search_terms": [
+        "skip hire",
+        "rubbish removal",
+        "waste clearance",
+        "house clearance",
+        "grab hire"
+      ],
+      "maps_categories_include": [
+        "Waste management service",
+        "Garbage collection service",
+        "Skip hire company",
+        "Rubbish dump"
+      ],
+      "maps_categories_exclude": [
+        "Recycling centre",
+        "Scrap metal dealer",
+        "Landfill"
+      ],
+      "what_i_sell": "AI phone agent that answers every booking call, captures skip size, address, permit need and drop date, books the slot, and takes the overflow when the office line is engaged.",
+      "problems_it_fixes": [
+        "High call volume, one line, constant engaged tone",
+        "Same-day bookings lost to whoever answered",
+        "Drivers cannot take calls on the road",
+        "No out-of-hours booking capture for next-day work"
+      ],
+      "avg_job_value_gbp": 250,
+      "setup_price_gbp": [
+        900,
+        1500
+      ],
+      "price_per_month_gbp": [
+        250,
+        450
+      ],
+      "after_hours_loss_gbp_month": [
+        1000,
+        3000
+      ],
+      "has_receptionist": "sometimes",
+      "books_online": "sometimes",
+      "runs_ads_likelihood": "high",
+      "emergency_scenario": null,
+      "caller_state": "price-shopping, wants a same-day or next-day slot",
+      "peak_season": "spring and summer",
+      "seasonal_hook": null,
+      "primary_objection": "The office takes the bookings",
+      "objection_counter": "One line, three callers. The two on engaged tone ring the next skip company and you never know it happened.",
+      "min_size_signal": [
+        "25+ reviews",
+        "own fleet",
+        "waste carrier licence",
+        "commercial contracts",
+        "multiple skip sizes"
+      ],
+      "chains_to_exclude": [
+        "biffa",
+        "veolia",
+        "suez",
+        "hippo",
+        "anyjunk",
+        "clearabee"
+      ],
+      "good_fit_pattern": [
+        "4.3 stars, 50 reviews, own fleet, licensed carrier, review about engaged phones",
+        "4.4 stars, 75 reviews, commercial and domestic, complaint about no answer"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 15 reviews, one van man-and-van operation",
+        "3.4 stars, complaints about fly-tipping and late collection"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "waste carrier",
+        "environment agency",
+        "ciwm"
+      ]
+    },
+    {
+      "rank": 20,
+      "vertical": "Removals & Man With A Van",
+      "tier": 4,
+      "search_terms": [
+        "removals company",
+        "man and van",
+        "house removals",
+        "office removals",
+        "moving company"
+      ],
+      "maps_categories_include": [
+        "Mover",
+        "Moving company",
+        "Storage facility",
+        "Van rental agency"
+      ],
+      "maps_categories_exclude": [
+        "Truck rental agency",
+        "Self storage facility",
+        "Freight forwarding service"
+      ],
+      "what_i_sell": "AI phone agent that answers every enquiry, captures move date, addresses, property size and access, books the survey or quote call, and follows up quoted-not-booked moves before the date passes.",
+      "problems_it_fixes": [
+        "Movers carrying furniture all day, phone unanswered",
+        "Quote enquiries lost to the first firm that answers",
+        "Quoted moves never followed up before the date",
+        "Weekend enquiries missed entirely"
+      ],
+      "avg_job_value_gbp": 600,
+      "setup_price_gbp": [
+        1000,
+        1600
+      ],
+      "price_per_month_gbp": [
+        250,
+        500
+      ],
+      "after_hours_loss_gbp_month": [
+        1500,
+        4000
+      ],
+      "has_receptionist": "rarely",
+      "books_online": "sometimes",
+      "runs_ads_likelihood": "high",
+      "emergency_scenario": null,
+      "caller_state": "date-driven, comparing 3 quotes, decides within days",
+      "peak_season": "May to September, month-end peaks",
+      "seasonal_hook": null,
+      "primary_objection": "We call back at the end of the day",
+      "objection_counter": "By then they've had two quotes. Movers get chosen by whoever quoted first, not whoever quoted best.",
+      "min_size_signal": [
+        "25+ reviews",
+        "2+ vans",
+        "BAR member",
+        "storage offered",
+        "packing services listed"
+      ],
+      "chains_to_exclude": [
+        "pickfords",
+        "britannia",
+        "anyvan",
+        "shiply",
+        "compare the man and van"
+      ],
+      "good_fit_pattern": [
+        "4.4 stars, 60 reviews, 3 vans, BAR member, review about no reply to a quote request",
+        "4.5 stars, 85 reviews, storage offered, complaint about unreturned calls"
+      ],
+      "bad_fit_pattern": [
+        "4.9 stars, 18 reviews, single van operator",
+        "3.4 stars, complaints about damage and hidden charges"
+      ],
+      "already_contacted": [],
+      "accreditations": [
+        "bar",
+        "british association of removers",
+        "fidi"
+      ]
+    }
+  ]
+}

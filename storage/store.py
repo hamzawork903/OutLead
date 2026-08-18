@@ -108,7 +108,23 @@ _MIGRATIONS = ([
   + [("vertical", "TEXT")]
   + [("personal_line", "TEXT")]    # legacy (superseded by llm_emails)
   + [("llm_emails", "TEXT")]       # JSON: LLM-written 3-step sequence + greeting
-  + [("reviews_text", "TEXT")])    # JSON: captured Google reviews (opt-in group)
+  + [("reviews_text", "TEXT")]     # JSON: captured Google reviews (opt-in group)
+  # Homepage text, kept so the gate can check accreditations and out-of-hours
+  # claims without going back to the network. That's what makes a gate re-run
+  # on stored leads instant and free.
+  + [("website_text", "TEXT")]
+  # Gate results. `door` is the one to read: 1 means a customer said they have
+  # the problem, 2 means only their setup suggests it — measured separately or
+  # you can never tell which half of the funnel is working.
+  + [("gate_status", "TEXT"), ("drop_reason", "TEXT"), ("door", "INTEGER"),
+     ("tier", "TEXT"), ("priority_score", "INTEGER"),
+     ("problem_type", "TEXT"), ("problem_summary", "TEXT"),
+     ("gap", "TEXT"), ("offer", "TEXT"),
+     ("evidence_count", "INTEGER"),
+     ("quality_ratio", "REAL"), ("praise_point", "TEXT"),
+     ("quotes", "TEXT"),          # JSON: the 1-2 quotes with date + stars
+     ("judge_verdict", "TEXT"),   # JSON: cached LLM verdict, so re-runs are free
+     ("gated_at", "TEXT")])
 
 
 # Field groups the operator can switch on/off per run. Maps-side groups are
@@ -178,8 +194,14 @@ def save_lead(conn, lead, now: str, vertical=None) -> bool:
 
     `vertical`, when given, tags the lead with the scrape's business vertical
     (e.g. 'insurance', 'dental') — the routing key that later decides WHICH
-    email track this lead gets. Set on insert; also refreshed when a lead is
-    re-scraped under a vertical (last write wins)."""
+    email track this lead gets, and which spreadsheet tab it lands in.
+
+    Set ONCE, on the run that first found the business. It used to be last
+    write wins, which quietly re-tagged leads: a Manchester plumber turned up
+    again in an "emergency electrician" search, and the re-save moved it into
+    the electrician vertical — where it would have been pitched the wrong
+    product. `query` already behaves this way, and the two describe the same
+    event, so they now agree. Re-target deliberately with retag_vertical()."""
     d = asdict(lead)
     # reviews_text is a list of dicts on the dataclass; SQLite takes JSON.
     reviews_json = json.dumps(d.get("reviews_text")) if d.get("reviews_text") else None
@@ -188,9 +210,12 @@ def save_lead(conn, lead, now: str, vertical=None) -> bool:
     ).fetchone() is not None
     if exists:
         if vertical:
+            # Only fills a blank — never steals a lead from the vertical that
+            # found it first.
             conn.execute(
-                "UPDATE leads SET last_seen = ?, vertical = ? WHERE place_key = ?",
-                (now, vertical, lead.place_key))
+                "UPDATE leads SET last_seen = ?, "
+                "vertical = COALESCE(NULLIF(vertical, ''), ?) "
+                "WHERE place_key = ?", (now, vertical, lead.place_key))
         else:
             conn.execute("UPDATE leads SET last_seen = ? WHERE place_key = ?",
                          (now, lead.place_key))

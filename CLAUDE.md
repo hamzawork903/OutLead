@@ -84,6 +84,18 @@ Every rule below is mandatory.
 - **Never commit or push to `main`.** Always create a branch and open a PR; never merge it yourself.
 - Small, single-purpose commits with messages that say why, not just what.
 - Never commit: `.env`, `leads.db`, `profile/` (live session cookies), `logs/`, `exports/`.
+- **Scan the diff for secrets and personal data BEFORE every commit — no exceptions.**
+  Run it over the staged changes, not from memory, and look for: API keys and
+  tokens, private keys (`BEGIN ... PRIVATE KEY`), passwords, service-account
+  JSON, OAuth client secrets, real email addresses, phone numbers, home
+  addresses, spreadsheet/document IDs, and absolute paths containing a
+  username. A leaked key in git history survives deletion of the file — the
+  only real fix is rotating the credential, so the scan happens before the
+  commit, never after.
+- Business strategy is data, not code. Pricing, target lists, objection
+  handling and go-to-market plans get gitignored with a `.example` version
+  committed in their place — the repo is public, and that material is worth
+  more to a competitor than the code is.
 
 ## 13. Definition of done — check before finishing any task
 

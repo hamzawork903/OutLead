@@ -12,48 +12,13 @@ Needs OPENAI_API_KEY in .env (loaded by config.py's dotenv call).
 """
 
 import json
-import os
 import re
-import threading
 
-import httpx
-
-from config import LLM, LOGS_DIR, OUTREACH_IDENTITY, OUTREACH_OFFER
+from config import LLM, OUTREACH_IDENTITY, OUTREACH_OFFER
+from core import llm
 from core.logbook import get_logger
 
 log = get_logger(__name__)
-
-_API_URL = "https://api.openai.com/v1/chat/completions"
-
-# ---- hard spending cap (user rule: $5 max for the test phase) -------------
-# Spend is estimated from the API's own usage counts per call and persisted,
-# so it survives restarts and accumulates across scrape/enrich/backfill runs.
-_SPEND_PATH = LOGS_DIR / "llm_spend.json"
-_spend_lock = threading.Lock()
-
-
-def _spent_usd() -> float:
-    try:
-        return float(json.loads(_SPEND_PATH.read_text())["spent_usd"])
-    except (OSError, ValueError, KeyError, json.JSONDecodeError):
-        return 0.0
-
-
-def _record_spend(prompt_tokens: int, completion_tokens: int) -> float:
-    price = LLM["price_per_mtok"]
-    cost = (prompt_tokens / 1e6 * price["input"]
-            + completion_tokens / 1e6 * price["output"])
-    with _spend_lock:
-        data = {"spent_usd": 0.0, "calls": 0}
-        try:
-            data.update(json.loads(_SPEND_PATH.read_text()))
-        except (OSError, ValueError, json.JSONDecodeError):
-            pass
-        data["spent_usd"] = round(data["spent_usd"] + cost, 6)
-        data["calls"] = data.get("calls", 0) + 1
-        LOGS_DIR.mkdir(exist_ok=True)
-        _SPEND_PATH.write_text(json.dumps(data))
-    return data["spent_usd"]
 
 PROMPT = """You write short cold-outreach emails for {business_name}, which \
 sells: {offer}
@@ -104,7 +69,6 @@ _BANNED_RE = re.compile(r"https?://|www\.|@|unsubscribe|as an ai|language model"
                         re.IGNORECASE)
 _NAME_OK_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 &'.\-]{1,39}$")
 
-_warned_no_key = False
 
 
 def _prompt() -> str:
@@ -229,54 +193,17 @@ def _lead_brief(lead: dict, site_text: str) -> str:
 def compose_emails(lead: dict, site_text: str) -> str | None:
     """Generate + validate the full sequence for one lead. Returns the JSON
     string to store (leads.llm_emails), or None (= not generated yet)."""
-    global _warned_no_key
-    key = os.environ.get("OPENAI_API_KEY")
-    if not LLM["enabled"] or not key:
-        if not key and LLM["enabled"] and not _warned_no_key:
-            _warned_no_key = True
-            log.info("  LLM email writing off: OPENAI_API_KEY not set in .env")
-        return None
-    spent = _spent_usd()
-    if spent >= LLM["budget_usd"]:
-        log.error("LLM NOT WORKING: the $%.2f test budget is used up "
-                  "($%.4f spent). No more emails will be generated until "
-                  "LLM['budget_usd'] is raised in config.py.",
-                  LLM["budget_usd"], spent)
-        return None
     if not site_text or len(site_text) < LLM["min_site_chars"]:
         site_text = ""                     # thin site: model leans on trade+city
 
-    body = {
-        "model": LLM["model"],
-        "max_tokens": 900,
-        "temperature": 0.5,
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": _prompt()},
-            {"role": "user", "content": _lead_brief(lead, site_text)},
-        ],
-    }
-    try:
-        resp = httpx.post(_API_URL, json=body, timeout=LLM["timeout_s"],
-                          headers={"Authorization": f"Bearer {key}"})
-        if resp.status_code != 200:
-            log.warning("LLM call failed (HTTP %d) for %r", resp.status_code,
-                        lead.get("name"))
-            return None
-        payload = resp.json()
-        raw = payload["choices"][0]["message"]["content"]
-    except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError) as err:
-        log.warning("LLM call failed (%s) for %r", type(err).__name__,
-                    lead.get("name"))
+    raw = llm.ask_json(_prompt(), _lead_brief(lead, site_text),
+                       max_tokens=900, label=repr(lead.get("name")))
+    if raw is None:
         return None
-
-    usage = payload.get("usage") or {}
-    total = _record_spend(usage.get("prompt_tokens", 0),
-                          usage.get("completion_tokens", 0))
 
     result = validate(raw)
     if result is None:
         return None
     log.info("  emails written for %r (greeting: %s) | LLM spend so far: $%.4f",
-             lead.get("name"), result["greeting_name"] or "none", total)
+             lead.get("name"), result["greeting_name"] or "none", llm.spent_usd())
     return json.dumps(result)
