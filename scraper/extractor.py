@@ -110,6 +110,30 @@ def _clean_ws(s: str | None) -> str | None:
     return s.replace(" ", " ").replace("\xa0", " ").strip() or None
 
 
+# Maps renders its offline/error state inside the same panel a business would
+# use, h1 and all — so the extractor happily read "Google Maps can't reach the
+# internet" as a business name 42 times during one network drop, saved them as
+# leads, and the run reported outcome=ok. A row with no address, no phone and
+# no rating is not a business, whatever the h1 says.
+_ERROR_NAMES = ("can't reach the internet", "cant reach the internet",
+                "no results found", "something went wrong", "try again",
+                "you're offline", "check your connection")
+
+
+class NoConnection(Exception):
+    """Maps served an error page — the network or Maps itself is down."""
+
+
+def _is_error_panel(raw: dict) -> bool:
+    name = (raw.get("name") or "").strip().lower()
+    if any(bad in name for bad in _ERROR_NAMES):
+        return True
+    # Belt and braces: a real listing always has at least one of these.
+    return not any(raw.get(f) for f in
+                   ("address", "phone_display", "phone_id", "website",
+                    "rating_blob", "category"))
+
+
 def extract_lead(page, listing, query: str, want_reviews: bool = False) -> Lead | None:
     """
     Navigate to a listing and return a Lead.
@@ -142,6 +166,11 @@ def extract_lead(page, listing, query: str, want_reviews: bool = False) -> Lead 
     guard_block(page)  # opened page might itself be a challenge -> stop the run
     humanizer.pause("reading_pause")  # let the panel finish hydrating
     raw = page.evaluate(_EXTRACT_JS)
+
+    if _is_error_panel(raw):
+        log.warning("Maps showed an error page instead of %r — skipping",
+                    listing.name)
+        raise NoConnection(raw.get("name") or "Maps error page")
 
     rating, reviews = _parse_rating(raw.get("rating_blob"))
     phone = raw.get("phone_display") or _clean_phone(raw.get("phone_id"))

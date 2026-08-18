@@ -104,10 +104,18 @@ SELECTORS = {
 # lazy-loading panel — so this only runs when the 'reviews_text' field group
 # is switched on, and never blocks a lead from being saved if it fails.
 REVIEWS = {
-    "max_per_lead": 8,          # cap; more reviews = more scrolling = more risk
+    "max_per_lead": 12,         # cap; more reviews = more scrolling = more risk
+    # The mix is the point. All praise and there's no weakness to pitch; all
+    # complaints and the email reads as an accusation. We open with something
+    # true and good, then name the gap.
+    "negative_target": 6,       # reviews at or below negative_max_stars
+    "positive_target": 5,       # reviews at or above positive_min_stars
+    "negative_max_stars": 3,    # Google reviews are whole stars: 1, 2, 3
+    "positive_min_stars": 4,
     "scroll_rounds": 3,         # the lazy panel loads ~8-10 per round
-    "max_chars_each": 400,      # one rambling review can't eat the budget
-    "max_chars_total": 1500,    # ceiling on what reaches the LLM prompt
+    # A safety bound on hostile input, NOT formatting. Quotes are stored whole
+    # so they can be quoted; the token budget lives at the prompt (LLM below).
+    "max_chars_each": 2000,
     "panel_timeout_ms": 8000,   # give up on the panel rather than hang the run
     "tab_attempts": 4,          # the tab strip hydrates after the h1 does
     "tab_wait_ms": 600,         # pause between those attempts
@@ -118,8 +126,23 @@ REVIEWS = {
     # Maps sorts by "Most relevant", which is nearly all praise. The complaints
     # are the buying signal, so fetch a few of the worst on purpose.
     "include_lowest_rated": True,
+    # A third pass sorted by Newest. Lowest-rating finds a business's worst
+    # reviews EVER and those skew old — six Manchester plumbers had complaints
+    # and not one was recent enough to quote. Maps has no date filter, only
+    # this sort, so recency means "sort newest, stop at the cutoff".
+    "include_newest": True,
+    "max_age_months": 18,       # capture window; the gate's quoting window is
+                                # evidence_max_age_months per vertical, and is
+                                # deliberately tighter so it can be tuned
+                                # without re-scraping
+
     "lowest_rated_max": 3,      # kept first, so the char budget can't drop them
-    "sort_wait_ms": 1200,       # menu open / list re-sort
+    "sort_wait_ms": 1200,       # list re-sort after picking an option
+    "menu_timeout_ms": 2500,    # wait for the sort menu to render
+    "sort_attempts": 2,         # the first click silently misses sometimes
+    "sort_verify_max_stars": 3,  # top of a lowest-first list must be <= this
+    "sort_verify_timeout_ms": 5000,  # how long to wait for the re-sort to land
+    "sort_poll_ms": 400,        # how often to check while waiting
 }
 
 # ---------------------------------------------------------- reliability ----
@@ -269,6 +292,13 @@ LLM = {
     "timeout_s": 45.0,             # full-sequence generation, not a one-liner
     "max_site_chars": 3500,        # how much website text the model sees
     "min_site_chars": 200,         # thinner than this -> model leans on trade+city
+    # Reviews are stored in full; this is how much of them the model pays for.
+    "review_count": 6,             # complaints come first, so they survive this
+    "review_chars_total": 1800,
+    "judge_max_tokens": 300,       # the gate's verdict is a small JSON object
+    # A classifier, not a writer. Any creativity here shows up as the same
+    # business qualifying on one run and not the next.
+    "judge_temperature": 0.0,
     # HARD spending cap for the test phase: once total estimated spend
     # (tracked per-call from the API's own token counts, persisted in
     # logs/llm_spend.json) reaches this, the LLM stops with a loud error.
@@ -298,3 +328,41 @@ SEQUENCE = {
     "dry_run": False,                 # real sending armed — see the --live /
                                       # "send for real" checkbox as the second key
 }
+
+
+# ------------------------------------------------------------------ sheets ----
+# Where gated leads land for you to work from. One tab per vertical, plus a
+# shared tab of everything the gate rejected and why — without that second tab
+# there's no way to tell "thresholds too tight" from "this city is exhausted".
+# The service-account key lives outside the repo entirely; only its path is here.
+SHEETS = {
+    "key_file": os.getenv("GOOGLE_SHEETS_KEY_FILE", ""),
+    "spreadsheet_id": os.getenv("GOOGLE_SHEETS_ID", ""),
+    "dropped_tab": "_Dropped",
+    "dedupe_key": "place_key",   # a re-scraped business updates its row
+    "write_dropped": True,
+    "batch_size": 200,           # rows per API call; Sheets throttles chatty writes
+    "timeout_s": 30.0,
+}
+
+SHEETS_ENABLED = bool(SHEETS["key_file"] and SHEETS["spreadsheet_id"])
+
+# Column order for every vertical tab. `door` is the one to pivot on: 1 means a
+# customer said they have the problem, 2 means only their setup suggests it.
+SHEET_COLUMNS = [
+    "scraped_at", "vertical", "city", "business_name", "category",
+    "rating", "review_count",
+    "phone", "email", "email_status", "website", "address",
+    "door", "tier", "priority_score", "gap", "offer",
+    "problem_type", "problem_summary", "evidence_count", "quality_ratio",
+    "quote_1_text", "quote_1_date", "quote_1_stars",
+    "quote_2_text", "quote_2_date", "quote_2_stars",
+    "praise_point",
+    "gate_status", "drop_reason",
+    "maps_url",
+    "contacted_at", "sequence_status", "replied", "do_not_contact",
+    # Google's own id for the listing. Dull, but it's what makes a re-scrape
+    # update a business's row instead of adding a second one — so it has to be
+    # a real column, not just an internal key.
+    "place_key",
+]

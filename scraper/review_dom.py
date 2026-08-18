@@ -1,134 +1,30 @@
 """
-Everything that touches Google's review DOM. The policy — how many to keep,
-what counts as junk — lives in reviews.py; this file only knows how to drive
-the panel and read what's in it.
+Drives Google's review panel: open the tab, expand, scroll, sort, read.
 
-The reviews DOM is generated React with churn-prone class names, unlike the
-`data-item-id` anchors the rest of the extractor leans on, so every selector
-here is chosen to survive a redesign:
+The selectors and the JavaScript live in review_js.py; the policy — how many
+reviews to keep, which count as complaints — lives in reviews.py. This file is
+only the hands.
 
-  container   div[data-review-id]              a real data attribute
-  stars       [role="img"][aria-label*="star"] accessibility text
-  text        longest leaf text node before the owner's reply
-  controls    matched by aria-label / jsaction, never by class
-
-Every function fails soft — the caller keeps its lead either way.
+Every function fails soft, and the ones that can fail invisibly check their own
+outcome rather than trusting that a click landed. Two bugs here were silent for
+a whole scrape: a sort that never applied, and an expand that never fired.
 """
+
+import re
 
 from config import REVIEWS
 from core.logbook import get_logger
+from scraper.review_js import (EXPAND_JS, EXPAND_TRUNCATED_JS, OPEN_SORT_JS,
+                               PICK_LOWEST_JS, PICK_NEWEST_JS, REVIEWS_JS,
+                               SCROLL_JS, SCROLL_TOP_JS, TAB_SELECTORS,
+                               TOP_STARS_JS)
 
 log = get_logger(__name__)
 
-# "Reviews" tab / button. Maps has shipped several shapes of this; try them in
-# order of how stable they've proven, and fall back to matching by text.
-_TAB_SELECTORS = (
-    'button[role="tab"][aria-label*="Reviews"]',
-    'button[aria-label*="Reviews for"]',
-    'button[jsaction*="pane.reviewChart.moreReviews"]',
-    'button[role="tab"]:has-text("Reviews")',
-)
+# Stars come from the card's accessibility label ("5 stars"), the one part of
+# a review card Google has never renamed. Shared with reviews.py.
+STARS_RE = re.compile(r"([0-9](?:\.[0-9])?)\s*star", re.IGNORECASE)
 
-# Read every loaded review card. Returns raw strings; all cleaning happens in
-# Python where it's testable.
-_REVIEWS_JS = r"""(maxCount) => {
-    const OWNER_RE = /response from the owner/i;
-    const cards = [...document.querySelectorAll('div[data-review-id]')]
-        // review cards carry an aria-label with the reviewer name; the
-        // container for the *whole list* also matches, so keep only leaves
-        .filter(el => !el.querySelector('div[data-review-id]'));
-
-    const out = [];
-    for (const card of cards.slice(0, maxCount)) {
-        const starEl = card.querySelector('[role="img"][aria-label*="star"], [aria-label*="star"]');
-        const stars = starEl ? (starEl.getAttribute('aria-label') || '') : '';
-
-        const leaves = [...card.querySelectorAll('span, div')]
-            .filter(el => !el.querySelector('span, div'));
-
-        // The owner's reply must not be mistaken for the review. Excluding it
-        // by container fails: textContent bubbles, so every ancestor up to the
-        // card "contains" the phrase. Anchor on the leaf holding the label
-        // instead — the reply is always what follows it in document order.
-        const label = leaves.find(el => OWNER_RE.test(el.textContent || ''));
-
-        // The review body is the longest text block before that anchor. Class
-        // names change; length doesn't.
-        let best = '';
-        for (const el of leaves) {
-            if (label && (label.compareDocumentPosition(el) &
-                          Node.DOCUMENT_POSITION_FOLLOWING)) continue;
-            if (OWNER_RE.test(el.textContent || '')) continue;
-            const t = (el.textContent || '').trim();
-            if (t.length > best.length) best = t;
-        }
-
-        // Relative date: short text ending in "ago", or an absolute month.
-        let when = null;
-        for (const el of card.querySelectorAll('span')) {
-            const t = (el.textContent || '').trim();
-            if (/\b(ago|week|month|year|day)s?\b/i.test(t) && t.length < 30) { when = t; break; }
-        }
-
-        out.push({stars: stars, text: best, when: when, owner_replied: !!label});
-    }
-    return out;
-}"""
-
-# Google collapses long reviews behind a "More" control. Match it by label and
-# by jsaction as well as by text, so a wording change doesn't silently start
-# storing truncated previews. Scoped to review cards on purpose: Maps has other
-# buttons reading "More", and clicking one of those tears down the panel.
-_EXPAND_JS = r"""() => {
-    let clicked = 0;
-    for (const b of document.querySelectorAll(
-            'div[data-review-id] button, div[data-review-id] [role="button"]')) {
-        const text = (b.textContent || '').trim();
-        const meta = (b.getAttribute('aria-label') || '') + ' ' +
-                     (b.getAttribute('jsaction') || '');
-        if (/^(more|see more|read more)$/i.test(text) ||
-            /see more|expandReview/i.test(meta)) {
-            try { b.click(); clicked++; } catch (e) {}
-        }
-    }
-    return clicked;
-}"""
-
-# Nudge the list down one screen so the lazy loader fetches more. Stops at the
-# container holding the cards: walking further up reaches Maps' results feed,
-# and scrolling *that* mid-scrape unmounts the listing panel.
-_SCROLL_JS = r"""() => {
-    const card = document.querySelector('div[data-review-id]');
-    if (!card) return;
-    let el = card.parentElement;
-    for (let i = 0; i < 6 && el; i++) {
-        // the listing header and the results feed both live above the reviews
-        // list; if we can see either, we've climbed too far
-        if (el.scrollHeight > el.clientHeight + 40 &&
-            !el.querySelector('h1') && !el.querySelector('[role="feed"]')) {
-            el.scrollTop += el.clientHeight;
-            return;
-        }
-        el = el.parentElement;
-    }
-}"""
-
-_OPEN_SORT_JS = r"""() => {
-    const b = [...document.querySelectorAll('button')].find(
-        el => /sort reviews/i.test(el.getAttribute('aria-label') || ''));
-    if (!b) return false;
-    b.click();
-    return true;
-}"""
-
-_PICK_LOWEST_JS = r"""() => {
-    const item = [...document.querySelectorAll(
-        '[role="menuitemradio"], [role="menuitem"], [role="option"]')].find(
-        el => /lowest/i.test(el.textContent || ''));
-    if (!item) return false;
-    item.click();
-    return true;
-}"""
 
 
 def find_tab(page):
@@ -136,7 +32,7 @@ def find_tab(page):
     Retries briefly: the tab strip hydrates a moment after the h1, so a single
     look loses reviews on whichever listings happen to render slowly."""
     for attempt in range(REVIEWS["tab_attempts"]):
-        for sel in _TAB_SELECTORS:
+        for sel in TAB_SELECTORS:
             try:
                 el = page.locator(sel).first
                 if el.count() > 0 and el.is_visible():
@@ -151,7 +47,7 @@ def find_tab(page):
 def read_cards(page, limit: int) -> list:
     """Raw review dicts for the cards currently rendered. [] if unreadable."""
     try:
-        return page.evaluate(_REVIEWS_JS, limit) or []
+        return page.evaluate(REVIEWS_JS, limit) or []
     except Exception as err:
         log.warning("review extraction failed (%s)", type(err).__name__)
         return []
@@ -164,7 +60,7 @@ def expand_more(page) -> int:
     clicked = 0
     for _ in range(REVIEWS["expand_passes"]):
         try:
-            found = page.evaluate(_EXPAND_JS)
+            found = page.evaluate(EXPAND_JS)
         except Exception as err:
             log.debug("review expand pass failed (%s)", type(err).__name__)
             break
@@ -172,33 +68,115 @@ def expand_more(page) -> int:
         if not found:
             break
         page.wait_for_timeout(REVIEWS["expand_wait_ms"])
+
+    try:                                    # anything still visibly cut off
+        if page.evaluate(EXPAND_TRUNCATED_JS):
+            page.wait_for_timeout(REVIEWS["expand_wait_ms"])
+    except Exception as err:
+        log.debug("truncated-text expand failed (%s)", type(err).__name__)
     return clicked
 
 
 def scroll_once(page) -> None:
     """Scroll the reviews list one screen to pull in the next lazy batch."""
     try:
-        page.evaluate(_SCROLL_JS)
+        page.evaluate(SCROLL_JS)
         page.wait_for_timeout(REVIEWS["scroll_wait_ms"])
     except Exception as err:
         log.debug("review scroll failed (%s)", type(err).__name__)
 
 
+def top_stars(page, count: int) -> list:
+    """Ratings of the first `count` cards, for checking a sort really applied."""
+    stars = []
+    try:
+        for label in page.evaluate(TOP_STARS_JS, count) or []:
+            found = STARS_RE.search(label or "")
+            if found:
+                stars.append(float(found.group(1)))
+    except Exception as err:
+        log.debug("reading top stars failed (%s)", type(err).__name__)
+    return stars
+
+
+def sort_newest(page) -> bool:
+    """Re-sort the panel by Newest. True if the list came back.
+
+    Unlike the lowest-rating sort there's nothing to verify the outcome
+    against — you can't tell "newest first" from the star ratings — so this
+    checks the list re-rendered and trusts the click. Safe, because a failed
+    newest sort just leaves us reading the default order, which we already
+    handle; it can only cost us freshness, never correctness."""
+    for _ in range(REVIEWS["sort_attempts"]):
+        try:
+            if _open_sort_menu(page) and page.evaluate(PICK_NEWEST_JS):
+                page.wait_for_selector("div[data-review-id]",
+                                       timeout=REVIEWS["panel_timeout_ms"])
+                page.wait_for_timeout(REVIEWS["sort_wait_ms"])
+                return True
+        except Exception as err:
+            log.debug("newest sort failed (%s)", type(err).__name__)
+    return False
+
+
+def _open_sort_menu(page) -> bool:
+    """Scroll to the top, open the sort menu, wait for its options."""
+    page.keyboard.press("Escape")           # clear a menu left open by a retry
+    try:
+        page.evaluate(SCROLL_TOP_JS)
+        page.wait_for_timeout(REVIEWS["scroll_wait_ms"])
+    except Exception as err:
+        log.debug("scroll to top failed (%s)", type(err).__name__)
+    if not page.evaluate(OPEN_SORT_JS):
+        return False
+    try:
+        page.wait_for_selector('[role="menuitemradio"], [role="menuitem"]',
+                               timeout=REVIEWS["menu_timeout_ms"])
+        return True
+    except Exception:
+        return False                        # menu never opened
+
+
+def _click_sort_lowest(page) -> None:
+    """Drive the sort menu to 'Lowest rating'. Says nothing about whether it
+    worked — _wait_until_sorted is what decides that."""
+    if _open_sort_menu(page):
+        page.evaluate(PICK_LOWEST_JS)
+
+
+def _wait_until_sorted(page) -> bool:
+    """Poll until the top of the list is low-rated, i.e. the re-sort landed.
+
+    Opening the menu unmounts the list and it comes back on Google's schedule,
+    not ours — a fixed wait was right often enough to look fine and wrong on
+    about one lead in seven, losing that lead's complaints."""
+    waited = 0
+    while waited < REVIEWS["sort_verify_timeout_ms"]:
+        stars = top_stars(page, 3)
+        if stars and max(stars) <= REVIEWS["sort_verify_max_stars"]:
+            return True
+        page.wait_for_timeout(REVIEWS["sort_poll_ms"])
+        waited += REVIEWS["sort_poll_ms"]
+    return False
+
+
 def sort_lowest(page) -> bool:
-    """Re-sort the panel by lowest rating. True if the list was re-sorted.
+    """Re-sort the panel by lowest rating. True only once the list is *proven*
+    re-sorted.
 
     Maps defaults to "Most relevant", which is overwhelmingly five-star praise
     — pleasant, and useless for spotting a business whose customers can't get
-    hold of them. The complaints are the buying signal, so we go and get them."""
-    try:
-        if not page.evaluate(_OPEN_SORT_JS):
-            return False
-        page.wait_for_timeout(REVIEWS["sort_wait_ms"])
-        if not page.evaluate(_PICK_LOWEST_JS):
-            page.keyboard.press("Escape")       # leave the menu as we found it
-            return False
-        page.wait_for_timeout(REVIEWS["sort_wait_ms"])
-        return True
-    except Exception as err:
-        log.debug("review sort failed (%s)", type(err).__name__)
-        return False
+    hold of them. The complaints are the buying signal, so we go and get them.
+
+    Trusting the click is not enough: it silently failed on 2 of 20 leads, and
+    an all-praise result is indistinguishable from a business with no
+    complaints. So the outcome is what's checked, not the click."""
+    for attempt in range(REVIEWS["sort_attempts"]):
+        try:
+            _click_sort_lowest(page)
+            if _wait_until_sorted(page):
+                return True
+            log.debug("sort didn't take, attempt %d", attempt + 1)
+        except Exception as err:
+            log.debug("review sort failed (%s)", type(err).__name__)
+    return False

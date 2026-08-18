@@ -173,6 +173,14 @@
   </div>
 
   <div class="space-y-3">
+    <div>
+      <label class="text-[11px] font-semibold text-muted">Business vertical <span class="text-muted/60">· fills the search + arms the gate</span></label>
+      <select id="vertical"
+        class="mt-1 w-full bg-black/25 border border-line rounded-xl py-2.5 px-3.5 text-[15px] focus:outline-none focus:border-accent">
+        <option value="">None — free-text search, no gate</option>
+      </select>
+      <p id="verticalNote" class="text-[10.5px] text-muted/70 mt-1 hidden"></p>
+    </div>
     <div><label class="text-[11px] font-semibold text-muted">Business type</label>
       <input id="niche" type="text" placeholder="e.g. dentists" autocomplete="off"
         class="mt-1 w-full bg-black/25 border border-line rounded-xl py-2.5 px-3.5 text-[15px] focus:outline-none focus:border-accent placeholder:text-muted/50"/></div>
@@ -227,6 +235,12 @@
         <span id="go-sync-text">Sync with outreach</span>
       </button>
     </div>
+    <button id="go-gate" disabled
+      class="w-full py-3 bg-white/5 hover:bg-white/10 border border-line text-ink font-bold rounded-xl text-[13px] transition flex items-center justify-center gap-1.5 disabled:opacity-40">
+      <span id="spin-gate" class="hidden w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"></span>
+      <span id="go-gate-text">Run the gate</span>
+    </button>
+    <p class="text-[10.5px] text-muted/70 -mt-1">Judges leads you've already scraped and writes the survivors to your spreadsheet. Reads only — it can't send anything.</p>
     <label class="flex items-center justify-between text-[12px] text-muted cursor-pointer">
       <span>Send emails for real (not a preview)</span>
       <input id="liveSend" type="checkbox" class="rounded"/>
@@ -386,9 +400,6 @@
   const jsonMsg=$("json-msg"), jsonList=$("json-list");
   let currentServiceFit=null;   // the email routing key from a loaded config
   $("json-toggle").onclick=()=>$("json-panel").classList.toggle("hidden");
-  // typing a business type by hand means "not one of the tagged configs" —
-  // clear the routing key so we don't mis-tag a manual scrape.
-  $("niche").addEventListener("input", ()=>{ currentServiceFit=null; });
   function applyConfig(c){
     currentServiceFit = c.serviceFit || null;
     if(c.niche!=null) $("niche").value=c.niche;
@@ -486,6 +497,13 @@
     ["go-plain","go-sync"].forEach(id=>$(id).disabled=on);
     if(which==="plain"||!on){ $("spin-plain").classList.toggle("hidden", !(on&&which==="plain")); $("go-plain-text").textContent=(on&&which==="plain")?"Scanning…":"Just scrape"; }
     if(which==="sync"||!on){ $("spin-sync").classList.toggle("hidden", !(on&&which==="sync")); $("go-sync-text").textContent=(on&&which==="sync")?"Scanning…":"Sync with outreach"; }
+    // The gate shares the run slot, so it has to reset here too — otherwise
+    // its spinner runs forever and the button never comes back.
+    if(which==="gate"||!on){
+      $("spin-gate").classList.toggle("hidden", !(on&&which==="gate"));
+      $("go-gate-text").textContent=(on&&which==="gate")?"Gating…":"Run the gate";
+      $("go-gate").disabled = on || !$("vertical").value;
+    }
     $("status").textContent=on?"Scanning":"Done"; $("lamp").style.background=on?"#ff3131":"#34d399";
     const t=$("t-status");
     t.textContent = on ? "● ACQUIRING" : "● STANDBY";
@@ -564,6 +582,78 @@
   }
   $("go-plain").addEventListener("click", ()=>start("plain"));
   $("go-sync").addEventListener("click", ()=>start("sync"));
+
+  // ---- verticals: pick a profile, get its search + the gate armed ----------
+  let verticals=[];
+  (async function loadVerticals(){
+    try{
+      const res=await fetch("/api/verticals");
+      verticals=await res.json();
+    }catch(_){ return; }                    // dropdown just stays empty
+    const sel=$("vertical");
+    verticals.forEach(v=>{
+      const o=document.createElement("option");
+      o.value=v.slug; o.textContent=v.name;
+      sel.appendChild(o);
+    });
+  })();
+
+  $("vertical").addEventListener("change", ()=>{
+    const slug=$("vertical").value;
+    const v=verticals.find(x=>x.slug===slug);
+    $("go-gate").disabled=!slug;
+    if(!v){ currentServiceFit=null; $("verticalNote").classList.add("hidden"); return; }
+    currentServiceFit=slug;
+    if(v.terms.length) $("niche").value=v.terms[0];
+    if(v.cities.length && !$("city").value.trim()) $("city").value=v.cities[0];
+    // The gate can't work without these two: no rating means an instant drop,
+    // and no reviews means the judge has nothing to read. Tick them rather
+    // than let someone scrape for an hour and find out afterwards.
+    ["f_ratings","f_reviews_text"].forEach(id=>{ if($(id)) $(id).checked=true; });
+    const note=$("verticalNote");
+    const searches=v.terms.length*Math.max(v.cities.length,1);
+    note.textContent=`Searches all ${searches} combinations (${v.terms.length} terms × ${v.cities.length} cities) until it hits your Limit. Ratings + customer reviews switched on — the gate needs both.`;
+    note.classList.remove("hidden");
+  });
+
+  // Typing a business type by hand means "not one of the profiles" — clear the
+  // routing key and disarm the gate so a manual scrape can't be mis-tagged.
+  $("niche").addEventListener("input", ()=>{
+    currentServiceFit=null;
+    if($("vertical").value){ $("vertical").value=""; $("go-gate").disabled=true;
+      $("verticalNote").classList.add("hidden"); }
+  });
+
+  $("go-gate").addEventListener("click", async ()=>{
+    const vertical=$("vertical").value;
+    if(!vertical) return;
+    $("spin-gate").classList.remove("hidden");
+    $("go-gate-text").textContent="Gating…";
+    $("go-gate").disabled=true;
+    firstLog=true; $("console").innerHTML="";
+    try{
+      const res=await fetch("/api/gate/start",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({vertical})});
+      const data=await res.json();
+      if(!res.ok){
+        $("hint").className="text-center text-[11px] text-bad mt-2";
+        $("hint").textContent=data.error||"Could not start the gate.";
+        $("spin-gate").classList.add("hidden");
+        $("go-gate-text").textContent="Run the gate";
+        $("go-gate").disabled=false;
+        return;
+      }
+      logLine("$ "+(data.command||"rungate.py"));
+      attachStream("gate");
+    }catch(e){
+      $("hint").className="text-center text-[11px] text-bad mt-2";
+      $("hint").textContent="Server not reachable.";
+      $("spin-gate").classList.add("hidden");
+      $("go-gate-text").textContent="Run the gate";
+      $("go-gate").disabled=false;
+    }
+  });
   ["niche","city","url"].forEach(id=>$(id).addEventListener("keydown", e=>{ if(e.key==="Enter") start("plain"); }));
 
   // If a scrape/sync run is still going (e.g. we left this page and came
